@@ -1,0 +1,35 @@
+# QR-API
+
+> API de WhatsApp via QR Code (WhatsApp Web / multi-device) da Flipt. Conecta qualquer numero escaneando um QR uma vez e permite enviar mensagens ilimitadas por assinatura fixa por numero. Inclui anti-ban automatico (warmup, pacing, health score), webhooks com HMAC e retry, idempotencia de envio, erros estruturados com doc_url, sandbox gratuita (sk_test_), SDK Node oficial e MCP server para integracao nativa com Claude Code, Cursor, Cline, Windsurf e outros AI coders.
+
+## Documentacao principal
+
+- [Visao geral e quickstart](https://docs.qrapi.flipt.com.br/overview): o que e a QR-API, por que escolher, quickstart em 3 passos, comparativo vs. API Oficial Meta.
+- [Autenticacao](https://docs.qrapi.flipt.com.br/authentication): formato Bearer sk_test_/sk_live_, scopes (messages:send, instances:read, etc.), erros de auth, boas praticas.
+- [Instancias](https://docs.qrapi.flipt.com.br/instances): criar, conectar via QR ou codigo, ciclo de vida (provisioning/qr_pending/connected/degraded/disconnected/banned), modos de inbound (off/webhook/followfy), health score.
+- [Enviar mensagens](https://docs.qrapi.flipt.com.br/send-messages): todos os tipos (text, image, video, audio, document, location, contact, sticker, buttons, list, poll, pix, reaction, reply), envio em lote com pacing, cancelar, marcar lida.
+- [Webhooks](https://docs.qrapi.flipt.com.br/webhooks): registrar, eventos (message.received, message.status, instance.connected, etc.), validar assinatura HMAC, politica de retry, painel de entregas, DLQ.
+- [Confiabilidade e anti-ban](https://docs.qrapi.flipt.com.br/reliability-antiban): warmup automatico, pacing com jitter, health score 0-100, throttle preditivo, isolamento por numero.
+- [Erros, idempotencia e rate limits](https://docs.qrapi.flipt.com.br/errors-idempotency-ratelimit): formato de erro estruturado, tipos de erro, Idempotency-Key, headers RateLimit-*, paginacao cursor.
+- [Referencia completa da API](https://docs.qrapi.flipt.com.br/api-reference): tabela de todos os endpoints com scope e descricao, eventos de webhook, headers de resposta.
+- [MCP Server](https://docs.qrapi.flipt.com.br/mcp): configurar @flipt/qr-api-mcp no Claude Code, Cursor, Cline e Windsurf; tools expostas; resources qrapi://docs/llms-full e qrapi://openapi.
+
+## Guias por ferramenta de IA
+
+- [Claude Code](https://docs.qrapi.flipt.com.br/ai-tools/claude-code): .mcp.json, snippet CLAUDE.md, prompt de exemplo.
+- [Cursor](https://docs.qrapi.flipt.com.br/ai-tools/cursor): .cursor/mcp.json, indexar via @Docs, uso no Composer.
+- [Windsurf](https://docs.qrapi.flipt.com.br/ai-tools/windsurf): mcp_config.json.
+- [Cline](https://docs.qrapi.flipt.com.br/ai-tools/cline): cline_mcp_settings.json.
+- [Continue](https://docs.qrapi.flipt.com.br/ai-tools/continue): config MCP e contexto.
+- [Lovable](https://docs.qrapi.flipt.com.br/ai-tools/lovable): SDK via edge/serverless function, aviso de segurança de chave.
+- [v0](https://docs.qrapi.flipt.com.br/ai-tools/v0): route handler Next.js, componente de exemplo.
+- [Bolt](https://docs.qrapi.flipt.com.br/ai-tools/bolt): snippet de integracao com chave no servidor.
+- [Replit](https://docs.qrapi.flipt.com.br/ai-tools/replit): secret QR_API_KEY, instalar SDK, exemplo.
+- [Prompts prontos](https://docs.qrapi.flipt.com.br/ai-tools/prompts): colecao de prompts copy-paste para qualquer assistente de IA.
+
+## Optional
+
+- [SDK Node (@flipt/qr-api)](https://www.npmjs.com/package/@flipt/qr-api): cliente TypeScript tipado; acerta o payload na primeira tentativa.
+- [MCP server (@flipt/qr-api-mcp)](https://www.npmjs.com/package/@flipt/qr-api-mcp): MCP server stdio para IDEs com suporte a MCP.
+- [OpenAPI 3.1](https://docs.qrapi.flipt.com.br/openapi.json): importavel no Cursor @Docs, Postman e geradores de SDK.
+- [llms-full.txt](https://docs.qrapi.flipt.com.br/llms-full.txt): documentacao inteira concatenada para leitura por LLM de uma vez.

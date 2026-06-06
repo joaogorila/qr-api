@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR-API, Console de Operador</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .card { background:#14161c; border:1px solid #232733; border-radius:14px; }
+    .btn { border-radius:10px; font-weight:600; transition:.15s; }
+    .btn-primary { background:#2563eb; color:#fff; } .btn-primary:hover { background:#1d4ed8; }
+    .btn-ghost { background:#1b1f29; color:#cbd5e1; border:1px solid #2a2f3c; } .btn-ghost:hover { background:#222735; }
+    .btn-danger { background:#7f1d1d; color:#fecaca; } .btn-danger:hover { background:#991b1b; }
+    input,select { background:#0f1116; border:1px solid #2a2f3c; border-radius:10px; color:#e5e7eb; }
+    input:focus { outline:none; border-color:#2563eb; }
+    th { text-align:left; color:#94a3b8; font-weight:600; font-size:12px; padding:8px 12px; }
+    td { padding:10px 12px; border-top:1px solid #1d212b; font-size:14px; }
+    tr:hover td { background:#11141a; cursor:pointer; }
+    .badge { border-radius:999px; font-size:11px; font-weight:600; padding:2px 10px; }
+  </style>
+</head>
+<body class="bg-[#0b0c10] text-slate-200 min-h-screen">
+  <div id="app" class="max-w-6xl mx-auto px-4 py-8"></div>
+<script>
+const API = '/admin/api';
+let token = localStorage.getItem('qrapi_admin_token') || null;
+
+function h(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
+function money(n){ return 'R$ ' + Number(n||0).toLocaleString('pt-BR'); }
+function fmtDate(d){ return d? new Date(d).toLocaleDateString('pt-BR') : '-'; }
+async function api(path, opts={}) {
+  const res = await fetch(API+path, { method:opts.method||'GET',
+    headers:{ 'Content-Type':'application/json', ...(token?{Authorization:'Bearer '+token}:{}) },
+    ...(opts.body?{body:JSON.stringify(opts.body)}:{}) });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data?.error?.message || 'Erro');
+  return data;
+}
+
+function statusColor(s){ return ({CONNECTED:'bg-green-900 text-green-300',QR_PENDING:'bg-amber-900 text-amber-300',PROVISIONING:'bg-slate-700 text-slate-300',DISCONNECTED:'bg-red-900 text-red-300',BANNED:'bg-red-950 text-red-400',DEGRADED:'bg-orange-900 text-orange-300',ACTIVE:'bg-green-900 text-green-300',TRIALING:'bg-blue-900 text-blue-300',PAST_DUE:'bg-amber-900 text-amber-300',CANCELED:'bg-red-900 text-red-300'})[s]||'bg-slate-700 text-slate-300'; }
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+function renderLogin(err){
+  const app=document.getElementById('app'); app.innerHTML='';
+  app.appendChild(h(`<div class="max-w-sm mx-auto mt-24">
+    <div class="text-center mb-6"><div class="text-2xl font-bold">QR-API . Operador</div><div class="text-slate-400 text-sm">Console interno</div></div>
+    <div class="card p-6 space-y-3">
+      <input id="email" type="email" class="w-full px-3 py-2.5" placeholder="Email de operador" />
+      <input id="pass" type="password" class="w-full px-3 py-2.5" placeholder="Senha" />
+      <button id="go" class="btn btn-primary w-full py-2.5">Entrar</button>
+      <div class="text-red-400 text-sm">${err||''}</div>
+    </div></div>`));
+  document.getElementById('go').onclick=async()=>{
+    try{
+      const r= await fetch('/portal/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value,password:document.getElementById('pass').value})});
+      const d= await r.json(); if(!r.ok) throw new Error(d?.error?.message||'Falha no login');
+      token=d.token; localStorage.setItem('qrapi_admin_token',token);
+      await loadDashboard();
+    }catch(e){ renderLogin(e.message); }
+  };
+}
+function logout(){ token=null; localStorage.removeItem('qrapi_admin_token'); renderLogin(); }
+
+// ─── Dashboard ─────────────────────────────────────────────────────────────────
+async function loadDashboard(){
+  try{
+    const [ov, accs] = await Promise.all([ api('/overview'), api('/accounts') ]);
+    renderDashboard(ov, accs.data);
+  }catch(e){
+    if(String(e.message).includes('operador')||String(e.message).includes('restrito')) renderLogin('Este usuario nao e operador.');
+    else logout();
+  }
+}
+
+function renderDashboard(ov, accounts){
+  const app=document.getElementById('app'); app.innerHTML='';
+  app.appendChild(h(`<div class="flex items-center justify-between mb-8">
+    <div class="text-2xl font-bold">Console de Operador</div>
+    <button id="logout" class="btn btn-ghost px-4 py-2">Sair</button></div>`));
+  document.getElementById('logout').onclick=logout;
+
+  const cards=[
+    ['MRR', money(ov.mrrBRL), 'ARR '+money(ov.arrBRL)],
+    ['Clientes', ov.accounts, ov.activeSubscriptions+' assinaturas ativas'],
+    ['Numeros', ov.instances.total, (ov.instances.byStatus.CONNECTED||0)+' conectados'],
+    ['Mensagens hoje', ov.messagesToday, (ov.messagesFailedToday||0)+' falhas'],
+  ];
+  const grid=h(`<div class="grid sm:grid-cols-4 gap-4 mb-8"></div>`);
+  cards.forEach(([t,v,s])=>grid.appendChild(h(`<div class="card p-5"><div class="text-slate-400 text-sm">${t}</div><div class="text-2xl font-bold mt-1">${v}</div><div class="text-slate-500 text-xs mt-2">${s}</div></div>`)));
+  app.appendChild(grid);
+
+  // saude das instancias
+  const bs=ov.instances.byStatus; const chips=Object.keys(bs).map(s=>`<span class="badge ${statusColor(s)}">${s}: ${bs[s]}</span>`).join(' ');
+  app.appendChild(h(`<div class="card p-4 mb-8"><div class="text-sm text-slate-400 mb-2">Saude das instancias (todos os clientes)</div><div class="flex flex-wrap gap-2">${chips||'<span class=text-slate-500>nenhuma</span>'}</div></div>`));
+
+  // busca + tabela de clientes
+  const wrap=h(`<div>
+    <div class="flex items-center justify-between mb-3"><div class="text-lg font-semibold">Clientes</div>
+      <input id="search" class="px-3 py-2 w-64" placeholder="Buscar por nome ou email" /></div>
+    <div class="card overflow-hidden"><table class="w-full"><thead><tr>
+      <th>Conta</th><th>Plano</th><th>Status</th><th>Numeros</th><th>MRR</th><th>Criada</th></tr></thead>
+      <tbody id="rows"></tbody></table></div></div>`);
+  app.appendChild(wrap);
+  const renderRows=(list)=>{
+    const rows=wrap.querySelector('#rows'); rows.innerHTML='';
+    if(!list.length){ rows.appendChild(h(`<tr><td colspan="6" class="text-slate-500">Nenhum cliente.</td></tr>`)); return; }
+    list.forEach(a=>{
+      const tr=h(`<tr>
+        <td><div class="font-medium">${a.name} ${a.suspended?'<span class=\"badge bg-red-950 text-red-400 ml-1\">SUSPENSA</span>':''}</div><div class="text-slate-500 text-xs">${a.email||''}</div></td>
+        <td>${a.plan? a.plan.toUpperCase():'<span class=text-slate-500>trial</span>'}</td>
+        <td><span class="badge ${statusColor(a.subscriptionStatus)}">${a.subscriptionStatus}</span></td>
+        <td>${a.instances}</td><td>${money(a.mrr)}</td><td class="text-slate-400">${fmtDate(a.createdAt)}</td></tr>`);
+      tr.onclick=()=>openAccount(a.id);
+      rows.appendChild(tr);
+    });
+  };
+  renderRows(accounts);
+  let t; wrap.querySelector('#search').oninput=(e)=>{ clearTimeout(t); t=setTimeout(async()=>{ const r=await api('/accounts?search='+encodeURIComponent(e.target.value)); renderRows(r.data); },300); };
+}
+
+// ─── Detalhe da conta ───────────────────────────────────────────────────────────
+async function openAccount(id){
+  try{
+    const d= await api('/accounts/'+id);
+    const sub=d.subscription;
+    const modal=h(`<div class="fixed inset-0 bg-black/70 flex items-start justify-center z-50 overflow-y-auto py-10" id="m">
+      <div class="card p-6 w-full max-w-2xl">
+        <div class="flex items-start justify-between mb-4">
+          <div><div class="text-xl font-bold">${d.account.name} ${d.account.suspended?'<span class=\"badge bg-red-950 text-red-400 ml-1\">SUSPENSA</span>':''}</div>
+            <div class="text-slate-400 text-sm">${d.users[0]?.email||''} . desde ${fmtDate(d.account.createdAt)}</div></div>
+          <button onclick="document.getElementById('m').remove()" class="btn btn-ghost px-3 py-1.5">Fechar</button>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="card p-3"><div class="text-slate-400 text-xs">Plano</div><div class="font-bold">${sub?.planId?.toUpperCase()||'Trial'}</div><span class="badge ${statusColor(sub?.status||'TRIALING')}">${sub?.status||'TRIALING'}</span></div>
+          <div class="card p-3"><div class="text-slate-400 text-xs">MRR</div><div class="font-bold">${money(d.mrr)}</div><div class="text-slate-500 text-xs">${sub?.quantity||0} numero(s)</div></div>
+          <div class="card p-3"><div class="text-slate-400 text-xs">Msgs 30d</div><div class="font-bold">${d.usage30d.messagesSent}</div><div class="text-slate-500 text-xs">${d.usage30d.messagesFailed} falhas</div></div>
+        </div>
+        <div class="text-sm font-semibold mb-1">Numeros (${d.instances.length})</div>
+        <div class="card divide-y divide-[#232733] mb-4">${d.instances.map(i=>`<div class="p-3 flex justify-between text-sm"><div>${i.name} <span class="badge ${statusColor(i.status)} ml-1">${i.status}</span></div><div class="text-slate-500">${i.phone||'-'} . saude ${i.healthScore}</div></div>`).join('')||'<div class="p-3 text-slate-500 text-sm">nenhum</div>'}</div>
+        <div class="text-sm font-semibold mb-1">Chaves (${d.keys.length})</div>
+        <div class="card divide-y divide-[#232733] mb-4">${d.keys.map(k=>`<div class="p-3 flex justify-between text-sm"><div>${k.name} <span class="badge ${statusColor(k.mode)} ml-1">${k.mode}</span></div><div class="text-slate-500 font-mono">${k.keyPrefix}</div></div>`).join('')||'<div class="p-3 text-slate-500 text-sm">nenhuma</div>'}</div>
+        <div class="flex gap-2">
+          ${d.account.suspended
+            ? `<button id="act" class="btn btn-primary px-4 py-2">Reativar conta</button>`
+            : `<button id="act" class="btn btn-danger px-4 py-2">Suspender conta</button>`}
+        </div>
+      </div></div>`);
+    document.body.appendChild(modal);
+    modal.querySelector('#act').onclick=async()=>{
+      const sus=!d.account.suspended;
+      if(!confirm(sus?'Suspender esta conta? Bloqueia envio e novos numeros.':'Reativar esta conta?')) return;
+      await api('/accounts/'+id+(sus?'/suspend':'/unsuspend'),{method:'POST'});
+      modal.remove(); loadDashboard();
+    };
+  }catch(e){ alert(e.message); }
+}
+
+if(token) loadDashboard(); else renderLogin();
+</script>
+</body>
+</html>

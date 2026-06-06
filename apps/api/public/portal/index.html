@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR-API, Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .card { background:#14161c; border:1px solid #232733; border-radius:14px; }
+    .btn { border-radius:10px; font-weight:600; transition:.15s; }
+    .btn-primary { background:#16a34a; color:#fff; }
+    .btn-primary:hover { background:#15803d; }
+    .btn-ghost { background:#1b1f29; color:#cbd5e1; border:1px solid #2a2f3c; }
+    .btn-ghost:hover { background:#222735; }
+    input,select { background:#0f1116; border:1px solid #2a2f3c; border-radius:10px; color:#e5e7eb; }
+    input:focus,select:focus { outline:none; border-color:#16a34a; }
+    .badge { border-radius:999px; font-size:11px; font-weight:600; padding:2px 10px; }
+  </style>
+</head>
+<body class="bg-[#0b0c10] text-slate-200 min-h-screen">
+  <div id="app" class="max-w-5xl mx-auto px-4 py-8"></div>
+
+<script>
+const API = '/portal/api';
+let token = localStorage.getItem('qrapi_token') || null;
+let state = { me: null, instances: [], keys: [], plans: [] };
+
+function h(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
+function money(n){ return 'R$ ' + Number(n).toLocaleString('pt-BR'); }
+async function api(path, opts={}) {
+  const res = await fetch(API+path, {
+    method: opts.method||'GET',
+    headers: { 'Content-Type':'application/json', ...(token?{Authorization:'Bearer '+token}:{}) },
+    ...(opts.body?{body:JSON.stringify(opts.body)}:{})
+  });
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data?.error?.message || data?.error || 'Erro');
+  return data;
+}
+
+// ─── Auth ───────────────────────────────────────────────────────────────────
+function renderAuth(mode='login') {
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  app.appendChild(h(`
+    <div class="max-w-md mx-auto mt-16">
+      <div class="text-center mb-8">
+        <div class="text-3xl font-bold tracking-tight">QR-API</div>
+        <div class="text-slate-400 mt-1">WhatsApp API por QR, mensagens ilimitadas por numero</div>
+      </div>
+      <div class="card p-6">
+        <div class="flex gap-2 mb-5">
+          <button id="tab-login" class="btn flex-1 py-2 ${mode==='login'?'btn-primary':'btn-ghost'}">Entrar</button>
+          <button id="tab-signup" class="btn flex-1 py-2 ${mode==='signup'?'btn-primary':'btn-ghost'}">Criar conta</button>
+        </div>
+        <div id="auth-form" class="space-y-3"></div>
+        <div id="auth-err" class="text-red-400 text-sm mt-3"></div>
+      </div>
+    </div>
+  `));
+  document.getElementById('tab-login').onclick=()=>renderAuth('login');
+  document.getElementById('tab-signup').onclick=()=>renderAuth('signup');
+  const form = document.getElementById('auth-form');
+  if (mode==='signup') {
+    form.appendChild(h(`<input id="f-name" class="w-full px-3 py-2.5" placeholder="Seu nome" />`));
+    form.appendChild(h(`<input id="f-company" class="w-full px-3 py-2.5" placeholder="Empresa (opcional)" />`));
+  }
+  form.appendChild(h(`<input id="f-email" type="email" class="w-full px-3 py-2.5" placeholder="Email" />`));
+  form.appendChild(h(`<input id="f-pass" type="password" class="w-full px-3 py-2.5" placeholder="Senha (min 8)" />`));
+  form.appendChild(h(`<button id="f-submit" class="btn btn-primary w-full py-2.5 mt-1">${mode==='signup'?'Criar conta gratis':'Entrar'}</button>`));
+  document.getElementById('f-submit').onclick = async () => {
+    const err = document.getElementById('auth-err'); err.textContent='';
+    try {
+      const email = document.getElementById('f-email').value.trim();
+      const password = document.getElementById('f-pass').value;
+      let res;
+      if (mode==='signup') {
+        res = await api('/signup',{method:'POST',body:{ name:document.getElementById('f-name').value, companyName:document.getElementById('f-company').value, email, password }});
+        if (res.testKey) setTimeout(()=>alert('Sua chave de TESTE (guarde):\n\n'+res.testKey),300);
+      } else {
+        res = await api('/login',{method:'POST',body:{ email, password }});
+      }
+      token = res.token; localStorage.setItem('qrapi_token', token);
+      await loadDashboard();
+    } catch(e){ err.textContent = e.message; }
+  };
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const [me, inst, keys] = await Promise.all([ api('/me'), api('/instances'), api('/keys') ]);
+    state = { me, instances: inst.data, keys: keys.data, plans: me.plans };
+    renderDashboard();
+  } catch(e) { logout(); }
+}
+
+function logout(){ token=null; localStorage.removeItem('qrapi_token'); renderAuth('login'); }
+
+function statusColor(s){
+  return ({CONNECTED:'bg-green-900 text-green-300', QR_PENDING:'bg-amber-900 text-amber-300', PROVISIONING:'bg-slate-700 text-slate-300', DISCONNECTED:'bg-red-900 text-red-300', BANNED:'bg-red-950 text-red-400', DEGRADED:'bg-orange-900 text-orange-300'})[s]||'bg-slate-700 text-slate-300';
+}
+
+function renderDashboard() {
+  const { me, instances, keys, plans } = state;
+  const sub = me.subscription;
+  const app = document.getElementById('app');
+  app.innerHTML='';
+  app.appendChild(h(`
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <div class="text-2xl font-bold">${me.account?.name||'Conta'}</div>
+        <div class="text-slate-400 text-sm">${me.user?.email||''}</div>
+      </div>
+      <button id="logout" class="btn btn-ghost px-4 py-2">Sair</button>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-4 mb-8">
+      <div class="card p-5">
+        <div class="text-slate-400 text-sm">Assinatura</div>
+        <div class="text-xl font-bold mt-1">${sub.planId?sub.planId.toUpperCase():'Trial'}</div>
+        <span class="badge mt-2 inline-block ${sub.status==='ACTIVE'?'bg-green-900 text-green-300':'bg-amber-900 text-amber-300'}">${sub.status}</span>
+      </div>
+      <div class="card p-5">
+        <div class="text-slate-400 text-sm">Numeros</div>
+        <div class="text-xl font-bold mt-1">${me.usage.instances} / ${me.usage.allowedInstances}</div>
+        <div class="text-slate-500 text-xs mt-2">conectados vs. permitidos</div>
+      </div>
+      <div class="card p-5">
+        <div class="text-slate-400 text-sm">Mensagens hoje</div>
+        <div class="text-xl font-bold mt-1">${me.usage.messagesSentToday}</div>
+        <div class="text-slate-500 text-xs mt-2">enviadas</div>
+      </div>
+    </div>
+  `));
+  document.getElementById('logout').onclick=logout;
+
+  // Planos
+  const plansEl = h(`<div class="mb-8"><div class="text-lg font-semibold mb-3">Planos</div><div class="grid sm:grid-cols-3 gap-4" id="plans"></div></div>`);
+  app.appendChild(plansEl);
+  const pg = plansEl.querySelector('#plans');
+  plans.forEach(p=>{
+    const active = sub.planId===p.id && sub.status==='ACTIVE';
+    const card = h(`
+      <div class="card p-5">
+        <div class="font-bold text-lg">${p.name}</div>
+        <div class="text-2xl font-bold mt-1">${money(p.priceMonthlyBRL)}<span class="text-sm text-slate-400 font-normal">/mes</span></div>
+        <ul class="text-sm text-slate-400 mt-3 space-y-1">${p.features.map(f=>`<li>- ${f}</li>`).join('')}</ul>
+        <button data-plan="${p.id}" class="btn ${active?'btn-ghost':'btn-primary'} w-full py-2 mt-4">${active?'Plano atual':'Assinar'}</button>
+      </div>`);
+    if(!active) card.querySelector('button').onclick=()=>checkout(p.id);
+    pg.appendChild(card);
+  });
+
+  // Numeros / instancias
+  const instEl = h(`
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-lg font-semibold">Numeros</div>
+        <button id="new-inst" class="btn btn-primary px-4 py-2 text-sm">+ Novo numero</button>
+      </div>
+      <div class="card divide-y divide-[#232733]" id="inst-list"></div>
+    </div>`);
+  app.appendChild(instEl);
+  document.getElementById('new-inst').onclick=newInstance;
+  const il = instEl.querySelector('#inst-list');
+  if(!instances.length) il.appendChild(h(`<div class="p-5 text-slate-500 text-sm">Nenhum numero ainda. Crie o primeiro.</div>`));
+  instances.forEach(i=>{
+    const row = h(`
+      <div class="p-4 flex items-center justify-between">
+        <div>
+          <div class="font-medium">${i.name} <span class="badge ml-2 ${statusColor(i.status)}">${i.status}</span></div>
+          <div class="text-slate-500 text-xs mt-0.5">${i.phone||'sem numero'} . saude ${i.healthScore} . limite ${i.dailyLimit}/dia . inbound ${i.inboundMode}</div>
+        </div>
+        <div class="flex gap-2">
+          ${i.status==='QR_PENDING'?`<button data-qr="${i.id}" class="btn btn-ghost px-3 py-1.5 text-sm">Ver QR</button>`:''}
+        </div>
+      </div>`);
+    const qb=row.querySelector('[data-qr]'); if(qb) qb.onclick=()=>showQr(i.id);
+    il.appendChild(row);
+  });
+
+  // API Keys
+  const keysEl = h(`
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-lg font-semibold">Chaves de API</div>
+        <button id="new-key" class="btn btn-primary px-4 py-2 text-sm">+ Nova chave</button>
+      </div>
+      <div class="card divide-y divide-[#232733]" id="key-list"></div>
+    </div>`);
+  app.appendChild(keysEl);
+  document.getElementById('new-key').onclick=newKey;
+  const kl = keysEl.querySelector('#key-list');
+  if(!keys.length) kl.appendChild(h(`<div class="p-5 text-slate-500 text-sm">Nenhuma chave. A chave de teste pode ter sido criada no signup.</div>`));
+  keys.forEach(k=>{
+    const row=h(`
+      <div class="p-4 flex items-center justify-between">
+        <div>
+          <div class="font-medium">${k.name} <span class="badge ml-2 ${k.mode==='LIVE'?'bg-green-900 text-green-300':'bg-slate-700 text-slate-300'}">${k.mode}</span></div>
+          <div class="text-slate-500 text-xs mt-0.5 font-mono">${k.keyPrefix}</div>
+        </div>
+        <button data-rev="${k.id}" class="btn btn-ghost px-3 py-1.5 text-sm text-red-300">Revogar</button>
+      </div>`);
+    row.querySelector('[data-rev]').onclick=async()=>{ if(confirm('Revogar esta chave?')){ await api('/keys/'+k.id,{method:'DELETE'}); loadDashboard(); }};
+    kl.appendChild(row);
+  });
+}
+
+// ─── Acoes ──────────────────────────────────────────────────────────────────
+async function checkout(planId){
+  try {
+    const qty = Number(prompt('Quantos numeros deseja contratar?', '1')||'1');
+    const m = (prompt('Pagamento: digite "pix" (Mercado Pago, PIX/cartao BR) ou "card" (Stripe, cartao internacional)', 'pix')||'pix').toLowerCase();
+    const provider = m.startsWith('c') ? 'stripe' : 'mercadopago';
+    const res = await api('/billing/checkout',{method:'POST',body:{ planId, quantity: qty, provider }});
+    if (res.mock) { alert('Modo demonstracao ('+res.provider+'): assinatura ativada sem cobranca.'); loadDashboard(); }
+    else window.location.href = res.url;
+  } catch(e){ alert(e.message); }
+}
+async function newInstance(){
+  try {
+    const name = prompt('Nome do numero (ex: Vendas):'); if(!name) return;
+    const mode = prompt('Modo inbound: off / webhook / followfy', 'off')||'off';
+    await api('/instances/create',{method:'POST',body:{ name, inboundMode: mode }});
+    loadDashboard();
+  } catch(e){ alert(e.message); }
+}
+async function newKey(){
+  try {
+    const name = prompt('Nome da chave (ex: Producao):'); if(!name) return;
+    const mode = prompt('Modo: live / test', 'live')||'live';
+    const res = await api('/keys',{method:'POST',body:{ name, mode }});
+    alert('Sua chave (copie agora, nao sera exibida de novo):\n\n'+res.rawKey);
+    loadDashboard();
+  } catch(e){ alert(e.message); }
+}
+async function showQr(id){
+  try {
+    const res = await fetch('/portal/api/instances/'+id+'/qr',{headers:{Authorization:'Bearer '+token}});
+    const d = await res.json();
+    if(!d.base64 && !d.qr){ alert('QR indisponivel ainda. Aguarde alguns segundos.'); return; }
+    const img = d.base64 || d.qr;
+    const modal = h(`<div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50" id="qrmodal">
+      <div class="card p-6 text-center"><div class="font-semibold mb-3">Escaneie no WhatsApp</div>
+      <img src="${img.startsWith('data:')?img:'data:image/png;base64,'+img}" class="w-64 h-64 bg-white rounded-lg p-2" />
+      <button class="btn btn-ghost w-full py-2 mt-4" onclick="document.getElementById('qrmodal').remove()">Fechar</button></div></div>`);
+    document.body.appendChild(modal);
+  } catch(e){ alert(e.message); }
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+if (token) loadDashboard(); else renderAuth('login');
+</script>
+</body>
+</html>

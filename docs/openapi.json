@@ -1,0 +1,1250 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "QR-API",
+    "version": "1.0.0",
+    "description": "API de WhatsApp via QR Code da Flipt. Conecta qualquer numero escaneando um QR uma vez e permite enviar mensagens ilimitadas por assinatura fixa. Inclui anti-ban automatico, webhooks com HMAC, idempotencia de envio, erros estruturados e sandbox gratuita.",
+    "contact": {
+      "name": "Suporte Flipt",
+      "url": "https://flipt.com.br/suporte",
+      "email": "suporte@flipt.com.br"
+    },
+    "license": {
+      "name": "Proprietario"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.qrapi.flipt.com.br/v1",
+      "description": "Standalone (produto qr-api publico)"
+    },
+    {
+      "url": "https://api.flipt.com.br/api/qrapi/v1",
+      "description": "Embedded (dentro do Followfy/Flipt)"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Chave de API no formato sk_test_xxx (sandbox) ou sk_live_xxx (producao). Nunca envie na URL."
+      }
+    },
+    "headers": {
+      "RequestId": {
+        "description": "Identificador unico da requisicao. Inclua ao falar com o suporte.",
+        "schema": { "type": "string", "example": "req_8f2a1c" }
+      },
+      "RateLimitLimit": {
+        "description": "Teto de requisicoes por segundo para esta chave.",
+        "schema": { "type": "integer", "example": 10 }
+      },
+      "RateLimitRemaining": {
+        "description": "Requisicoes restantes na janela atual.",
+        "schema": { "type": "integer", "example": 7 }
+      },
+      "RateLimitReset": {
+        "description": "Timestamp Unix de quando o contador reseta.",
+        "schema": { "type": "integer", "example": 1733405200 }
+      },
+      "RetryAfter": {
+        "description": "Segundos para aguardar antes de tentar novamente (presente apenas no 429).",
+        "schema": { "type": "integer", "example": 3 }
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "description": "UUID v4 unico por operacao. Evita mensagem duplicada em retries. Obrigatorio em producao para todos os POST que criam recursos.",
+        "schema": { "type": "string", "format": "uuid", "example": "3f8c1e9a-7b2d-4c6e-9a1f-2b3c4d5e6f70" }
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "description": "Numero de itens por pagina.",
+        "schema": { "type": "integer", "default": 20, "maximum": 100 }
+      },
+      "StartingAfter": {
+        "name": "starting_after",
+        "in": "query",
+        "description": "Cursor para paginacao (ID do ultimo item da pagina anterior).",
+        "schema": { "type": "string" }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error", "request_id"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["type", "code", "message"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "authentication_error",
+                  "permission_error",
+                  "invalid_request_error",
+                  "not_found_error",
+                  "idempotency_error",
+                  "rate_limit_error",
+                  "instance_error",
+                  "api_error"
+                ],
+                "description": "Categoria de erro para tratamento programatico."
+              },
+              "code": {
+                "type": "string",
+                "description": "Codigo especifico do erro.",
+                "example": "missing_parameter"
+              },
+              "message": {
+                "type": "string",
+                "description": "Descricao legivel para exibicao ou log.",
+                "example": "O campo 'to' e obrigatorio."
+              },
+              "param": {
+                "type": "string",
+                "description": "Campo invalido/ausente (presente em invalid_request_error).",
+                "example": "to"
+              },
+              "doc_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Link direto para a pagina de documentacao relevante.",
+                "example": "https://docs.qrapi.flipt.com.br/send-messages"
+              }
+            }
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Identificador unico desta requisicao. Inclua ao contatar o suporte.",
+            "example": "req_8f2a1c"
+          }
+        }
+      },
+      "PaginatedResponse": {
+        "type": "object",
+        "properties": {
+          "has_more": {
+            "type": "boolean",
+            "description": "Indica se existem mais itens alem desta pagina."
+          },
+          "next_cursor": {
+            "type": "string",
+            "description": "Cursor para a proxima pagina (use em starting_after)."
+          }
+        }
+      },
+      "Instance": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "inst_123" },
+          "name": { "type": "string", "example": "Meu ERP" },
+          "status": {
+            "type": "string",
+            "enum": ["provisioning", "qr_pending", "connected", "degraded", "disconnected", "banned"],
+            "description": "Estado atual da conexao."
+          },
+          "inboundMode": {
+            "type": "string",
+            "enum": ["off", "webhook", "followfy"],
+            "description": "off: so envia; webhook: respostas vao ao seu webhook; followfy: respostas vao ao inbox do Followfy."
+          },
+          "healthScore": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Score de saude anti-ban (0-100). Abaixo de 60 indica risco."
+          },
+          "phone": {
+            "type": "string",
+            "description": "Numero conectado (preenchido apos connected).",
+            "example": "5511999998888"
+          },
+          "messagesToday": { "type": "integer", "example": 142 },
+          "dailyLimit": { "type": "integer", "example": 1000 },
+          "warmupUntil": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fim do periodo de warmup. Nulo se nao estiver em warmup.",
+            "example": "2026-06-10T00:00:00Z"
+          },
+          "lastSeenAt": { "type": "string", "format": "date-time" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateInstanceRequest": {
+        "type": "object",
+        "required": ["name", "inboundMode"],
+        "properties": {
+          "name": { "type": "string", "description": "Nome da instancia para identificacao.", "example": "Meu ERP" },
+          "inboundMode": {
+            "type": "string",
+            "enum": ["off", "webhook", "followfy"],
+            "description": "Modo de tratamento das mensagens recebidas."
+          },
+          "dailyLimit": {
+            "type": "integer",
+            "description": "Teto diario de mensagens. O warmup ignora este valor nos primeiros dias.",
+            "example": 1000
+          },
+          "webhook": {
+            "type": "object",
+            "description": "Atalho para registrar webhook na criacao da instancia.",
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "events": {
+                "type": "array",
+                "items": { "type": "string" },
+                "example": ["message.status", "message.received"]
+              }
+            }
+          }
+        }
+      },
+      "UpdateInstanceRequest": {
+        "type": "object",
+        "properties": {
+          "inboundMode": { "type": "string", "enum": ["off", "webhook", "followfy"] },
+          "dailyLimit": { "type": "integer" },
+          "webhook": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "events": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      },
+      "MessageType": {
+        "type": "string",
+        "enum": ["text", "image", "video", "audio", "document", "location", "contact", "sticker", "buttons", "list", "poll", "pix", "reaction", "reply"],
+        "description": "Tipo da mensagem."
+      },
+      "MediaObject": {
+        "type": "object",
+        "description": "Referencia de midia. Use url (recomendado) ou base64.",
+        "properties": {
+          "url": { "type": "string", "format": "uri", "description": "URL publica do arquivo. Limite: 100 MB." },
+          "base64": { "type": "string", "description": "Conteudo em base64 (alternativa ao url)." }
+        }
+      },
+      "SendMessageRequest": {
+        "type": "object",
+        "required": ["instanceId", "to", "type"],
+        "description": "Campos comuns a todos os tipos. Campos especificos por type estao detalhados na documentacao.",
+        "properties": {
+          "instanceId": { "type": "string", "example": "inst_123" },
+          "to": {
+            "type": "string",
+            "description": "Numero destino em E.164 sem + (ex.: 5511999998888) ou JID de grupo.",
+            "example": "5511999998888"
+          },
+          "type": { "$ref": "#/components/schemas/MessageType" },
+          "text": {
+            "type": "string",
+            "description": "Conteudo de texto. Obrigatorio para type=text e reply. Opcional como legenda em imagem/video."
+          },
+          "caption": {
+            "type": "string",
+            "description": "Legenda de midia (imagem, video, documento)."
+          },
+          "media": { "$ref": "#/components/schemas/MediaObject" },
+          "ptt": {
+            "type": "boolean",
+            "description": "Apenas type=audio. true converte para mensagem de voz (bolha roxa)."
+          },
+          "filename": {
+            "type": "string",
+            "description": "Apenas type=document. Nome exibido no WhatsApp.",
+            "example": "boleto.pdf"
+          },
+          "latitude": { "type": "number", "description": "Apenas type=location." },
+          "longitude": { "type": "number", "description": "Apenas type=location." },
+          "name": { "type": "string", "description": "Apenas type=location. Nome do local." },
+          "address": { "type": "string", "description": "Apenas type=location. Endereco completo." },
+          "contact": {
+            "type": "object",
+            "description": "Apenas type=contact.",
+            "properties": {
+              "fullName": { "type": "string" },
+              "phone": { "type": "string" }
+            }
+          },
+          "buttons": {
+            "type": "array",
+            "description": "Apenas type=buttons. Maximo 3 botoes.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" }
+              }
+            }
+          },
+          "buttonText": { "type": "string", "description": "Apenas type=list. Texto do botao que abre a lista." },
+          "sections": {
+            "type": "array",
+            "description": "Apenas type=list.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "title": { "type": "string" },
+                      "description": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "question": { "type": "string", "description": "Apenas type=poll. Pergunta da enquete." },
+          "options": {
+            "type": "array",
+            "description": "Apenas type=poll. Lista de opcoes.",
+            "items": { "type": "string" }
+          },
+          "multiSelect": { "type": "boolean", "description": "Apenas type=poll. Permite multipla selecao." },
+          "pix": {
+            "type": "object",
+            "description": "Apenas type=pix.",
+            "properties": {
+              "key": { "type": "string", "example": "joao@flipt.com.br" },
+              "keyType": {
+                "type": "string",
+                "enum": ["cpf", "cnpj", "email", "phone", "random"]
+              },
+              "name": { "type": "string", "example": "Flipt" },
+              "amount": { "type": "number", "example": 49.90 }
+            }
+          },
+          "messageId": { "type": "string", "description": "Apenas type=reaction. ID da mensagem a reagir." },
+          "emoji": { "type": "string", "description": "Apenas type=reaction." },
+          "replyTo": { "type": "string", "description": "Apenas type=reply. ID da mensagem citada." },
+          "linkPreview": { "type": "boolean", "description": "Apenas type=text. Forcca preview de link.", "default": true },
+          "externalId": { "type": "string", "description": "Seu ID para dedup e rastreio." },
+          "scheduledAt": { "type": "string", "format": "date-time", "description": "Agenda o envio." },
+          "delayTyping": {
+            "type": "integer",
+            "description": "Milissegundos simulando digitacao antes de enviar. Melhora naturalidade e ajuda no anti-ban.",
+            "example": 2000
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "msg_abc" },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "scheduled", "sending", "sent", "delivered", "read", "failed", "cancelled"]
+          },
+          "request_id": { "type": "string", "example": "req_x1" }
+        }
+      },
+      "MessageDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/MessageResponse" },
+          {
+            "type": "object",
+            "properties": {
+              "instanceId": { "type": "string" },
+              "to": { "type": "string" },
+              "type": { "$ref": "#/components/schemas/MessageType" },
+              "createdAt": { "type": "string", "format": "date-time" },
+              "sentAt": { "type": "string", "format": "date-time" },
+              "deliveredAt": { "type": "string", "format": "date-time" },
+              "readAt": { "type": "string", "format": "date-time" },
+              "failedAt": { "type": "string", "format": "date-time" },
+              "error": { "type": "string", "description": "Descricao do erro se status=failed." }
+            }
+          }
+        ]
+      },
+      "BulkMessageRequest": {
+        "type": "object",
+        "required": ["instanceId", "messages"],
+        "properties": {
+          "instanceId": { "type": "string", "example": "inst_123" },
+          "messages": {
+            "type": "array",
+            "description": "Lista de mensagens. Pacing anti-ban aplicado automaticamente (3-8s entre mensagens).",
+            "items": { "$ref": "#/components/schemas/SendMessageRequest" }
+          }
+        }
+      },
+      "Webhook": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "wh_1" },
+          "instanceId": { "type": "string", "example": "inst_123" },
+          "url": { "type": "string", "format": "uri" },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "*",
+                "message.received",
+                "message.status",
+                "message.sent",
+                "instance.connected",
+                "instance.disconnected",
+                "instance.qr",
+                "instance.health",
+                "instance.banned"
+              ]
+            }
+          },
+          "secret": {
+            "type": "string",
+            "description": "Segredo HMAC-SHA256. Exibido apenas na criacao. Use para validar X-Qr-Signature.",
+            "example": "whsec_abc..."
+          },
+          "active": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateWebhookRequest": {
+        "type": "object",
+        "required": ["instanceId", "url", "events"],
+        "properties": {
+          "instanceId": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "events": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["message.received", "message.status"]
+          }
+        }
+      },
+      "UpdateWebhookRequest": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "events": { "type": "array", "items": { "type": "string" } },
+          "active": { "type": "boolean" }
+        }
+      },
+      "WebhookDelivery": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "event": { "type": "string" },
+          "status": { "type": "string", "enum": ["success", "failed", "pending"] },
+          "attempts": { "type": "integer" },
+          "lastHttpStatus": { "type": "integer" },
+          "nextRetryAt": { "type": "string", "format": "date-time" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "key_abc" },
+          "name": { "type": "string", "example": "Integracao ERP" },
+          "prefix": {
+            "type": "string",
+            "description": "Primeiros caracteres da chave para identificacao visual.",
+            "example": "sk_live_4eC3"
+          },
+          "scopes": { "type": "array", "items": { "type": "string" } },
+          "lastUsedAt": { "type": "string", "format": "date-time" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "required": ["name", "scopes"],
+        "properties": {
+          "name": { "type": "string" },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["messages:send", "messages:read", "instances:read", "instances:write", "webhooks:write", "phones:read", "*"]
+            }
+          },
+          "expiresAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PhoneExistsResponse": {
+        "type": "object",
+        "properties": {
+          "number": { "type": "string", "example": "5511999998888" },
+          "exists": { "type": "boolean" },
+          "jid": { "type": "string", "description": "JID do WhatsApp se exists=true.", "example": "5511999998888@s.whatsapp.net" }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Autenticacao invalida.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Forbidden": {
+        "description": "Scope insuficiente.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "Recurso nao encontrado.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "TooManyRequests": {
+        "description": "Rate limit excedido.",
+        "headers": {
+          "Retry-After": { "$ref": "#/components/headers/RetryAfter" }
+        },
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  },
+  "paths": {
+    "/instances": {
+      "post": {
+        "operationId": "createInstance",
+        "summary": "Cria instancia",
+        "description": "Provisiona uma nova conexao de WhatsApp. O numero entra em warmup automatico.",
+        "tags": ["Instancias"],
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateInstanceRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Instancia criada.",
+            "headers": {
+              "Request-Id": { "$ref": "#/components/headers/RequestId" },
+              "RateLimit-Limit": { "$ref": "#/components/headers/RateLimitLimit" },
+              "RateLimit-Remaining": { "$ref": "#/components/headers/RateLimitRemaining" },
+              "RateLimit-Reset": { "$ref": "#/components/headers/RateLimitReset" }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Instance" }
+              }
+            }
+          },
+          "400": { "description": "Parametros invalidos.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
+        }
+      },
+      "get": {
+        "operationId": "listInstances",
+        "summary": "Lista instancias",
+        "tags": ["Instancias"],
+        "parameters": [
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/StartingAfter" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de instancias.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginatedResponse" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Instance" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/instances/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "example": "inst_123" }
+      ],
+      "get": {
+        "operationId": "getInstance",
+        "summary": "Detalhe da instancia",
+        "description": "Retorna status, healthScore, messagesToday, dailyLimit e lastSeenAt.",
+        "tags": ["Instancias"],
+        "responses": {
+          "200": {
+            "description": "Detalhe da instancia.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Instance" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "updateInstance",
+        "summary": "Atualiza instancia",
+        "tags": ["Instancias"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateInstanceRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Instancia atualizada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Instance" } } } },
+          "400": { "description": "Parametros invalidos.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteInstance",
+        "summary": "Remove instancia",
+        "tags": ["Instancias"],
+        "responses": {
+          "204": { "description": "Instancia removida." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/instances/{id}/qr": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "operationId": "getInstanceQr",
+        "summary": "Obter QR Code",
+        "description": "Retorna QR em base64 para conectar o numero. O QR rotaciona a cada 60s; chame novamente se expirar.",
+        "tags": ["Instancias"],
+        "responses": {
+          "200": {
+            "description": "QR Code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "qr": { "type": "string", "description": "QR em data URI (data:image/png;base64,...)." },
+                    "expiresIn": { "type": "integer", "description": "Segundos ate o QR expirar.", "example": 60 }
+                  }
+                }
+              }
+            }
+          },
+          "409": { "description": "Instancia nao esta em qr_pending.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/instances/{id}/pair": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "post": {
+        "operationId": "pairInstance",
+        "summary": "Parear por codigo",
+        "description": "Alternativa ao QR: gera um codigo numerico para digitar no celular.",
+        "tags": ["Instancias"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["phone"],
+                "properties": {
+                  "phone": { "type": "string", "description": "Numero em E.164 sem +.", "example": "5511999998888" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Codigo de pareamento gerado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pairingCode": { "type": "string", "example": "ABCD-1234" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/instances/{id}/restart": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "post": {
+        "operationId": "restartInstance",
+        "summary": "Reinicia conexao",
+        "tags": ["Instancias"],
+        "responses": {
+          "200": { "description": "Reconexao iniciada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Instance" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/instances/{id}/disconnect": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "post": {
+        "operationId": "disconnectInstance",
+        "summary": "Desconecta numero",
+        "tags": ["Instancias"],
+        "responses": {
+          "200": { "description": "Instancia desconectada.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Instance" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/messages": {
+      "post": {
+        "operationId": "sendMessage",
+        "summary": "Envia mensagem",
+        "description": "Enfileira uma mensagem para envio. Use Idempotency-Key para evitar duplicacao em retries.",
+        "tags": ["Mensagens"],
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SendMessageRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Mensagem enfileirada.",
+            "headers": {
+              "Request-Id": { "$ref": "#/components/headers/RequestId" }
+            },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } } }
+          },
+          "400": { "description": "Parametros invalidos.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": {
+            "description": "Instancia nao conectada, banida ou em warmup.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
+        }
+      },
+      "get": {
+        "operationId": "listMessages",
+        "summary": "Lista mensagens",
+        "tags": ["Mensagens"],
+        "parameters": [
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/StartingAfter" },
+          {
+            "name": "instanceId",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filtra por instancia."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["queued", "scheduled", "sending", "sent", "delivered", "read", "failed", "cancelled"] },
+            "description": "Filtra por status."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filtra por numero destino."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de mensagens.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginatedResponse" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/MessageDetail" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/messages/bulk": {
+      "post": {
+        "operationId": "sendBulkMessages",
+        "summary": "Envia mensagens em lote",
+        "description": "Enfileira multiplas mensagens com pacing anti-ban automatico (3-8s entre mensagens, com jitter).",
+        "tags": ["Mensagens"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BulkMessageRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Mensagens enfileiradas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "messages": { "type": "array", "items": { "$ref": "#/components/schemas/MessageResponse" } }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Parametros invalidos.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
+        }
+      }
+    },
+    "/messages/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "example": "msg_abc" }
+      ],
+      "get": {
+        "operationId": "getMessage",
+        "summary": "Status da mensagem",
+        "tags": ["Mensagens"],
+        "responses": {
+          "200": { "description": "Detalhe da mensagem.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageDetail" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteMessage",
+        "summary": "Cancela ou apaga mensagem",
+        "description": "Se status=queued/scheduled: cancela o envio. Se ja enviada: apaga para todos (se possivel).",
+        "tags": ["Mensagens"],
+        "responses": {
+          "200": { "description": "Mensagem cancelada ou apagada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/messages/{id}/read": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "post": {
+        "operationId": "markMessageRead",
+        "summary": "Marca como lida",
+        "description": "Marca a conversa com este contato como lida.",
+        "tags": ["Mensagens"],
+        "responses": {
+          "200": { "description": "Marcada como lida." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/phones/{number}/exists": {
+      "parameters": [
+        {
+          "name": "number",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" },
+          "description": "Numero em E.164 sem + (ex.: 5511999998888).",
+          "example": "5511999998888"
+        }
+      ],
+      "get": {
+        "operationId": "checkPhone",
+        "summary": "Verificar numero",
+        "description": "Verifica se um numero tem conta ativa no WhatsApp.",
+        "tags": ["Numeros"],
+        "responses": {
+          "200": { "description": "Resultado da verificacao.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PhoneExistsResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/phones/exists": {
+      "post": {
+        "operationId": "checkPhonesBulk",
+        "summary": "Verificar numeros em lote",
+        "tags": ["Numeros"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["numbers"],
+                "properties": {
+                  "numbers": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["5511999998888", "5511999990001"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultados em lote.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": { "type": "array", "items": { "$ref": "#/components/schemas/PhoneExistsResponse" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/contacts/{number}": {
+      "parameters": [
+        { "name": "number", "in": "path", "required": true, "schema": { "type": "string" }, "example": "5511999998888" }
+      ],
+      "get": {
+        "operationId": "getContact",
+        "summary": "Perfil do contato",
+        "description": "Retorna nome publico e URL da foto de perfil do contato.",
+        "tags": ["Numeros"],
+        "responses": {
+          "200": {
+            "description": "Perfil do contato.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "number": { "type": "string" },
+                    "name": { "type": "string" },
+                    "profilePictureUrl": { "type": "string", "format": "uri" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/typing": {
+      "post": {
+        "operationId": "sendTyping",
+        "summary": "Presenca digitando",
+        "description": "Exibe o indicador de digitacao para o destinatario.",
+        "tags": ["Numeros"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["instanceId", "to"],
+                "properties": {
+                  "instanceId": { "type": "string" },
+                  "to": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Presenca enviada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/webhooks": {
+      "post": {
+        "operationId": "createWebhook",
+        "summary": "Registrar webhook",
+        "description": "Registra um endpoint para receber eventos. Retorna o secret HMAC (exibido apenas uma vez).",
+        "tags": ["Webhooks"],
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateWebhookRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Webhook registrado.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Webhook" } } }
+          },
+          "400": { "description": "Parametros invalidos.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "get": {
+        "operationId": "listWebhooks",
+        "summary": "Lista webhooks",
+        "tags": ["Webhooks"],
+        "responses": {
+          "200": {
+            "description": "Lista de webhooks.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Webhook" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/webhooks/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "example": "wh_1" }
+      ],
+      "patch": {
+        "operationId": "updateWebhook",
+        "summary": "Atualiza webhook",
+        "tags": ["Webhooks"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateWebhookRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Webhook atualizado.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Webhook" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteWebhook",
+        "summary": "Remove webhook",
+        "tags": ["Webhooks"],
+        "responses": {
+          "204": { "description": "Webhook removido." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/webhooks/{id}/deliveries": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "operationId": "listWebhookDeliveries",
+        "summary": "Painel de entregas",
+        "description": "Lista o historico de entregas do webhook incluindo tentativas, HTTP status e DLQ.",
+        "tags": ["Webhooks"],
+        "parameters": [
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/StartingAfter" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de entregas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginatedResponse" },
+                    { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/WebhookDelivery" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/webhooks/{id}/deliveries/{deliveryId}/retry": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "deliveryId", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "post": {
+        "operationId": "retryWebhookDelivery",
+        "summary": "Reenvio manual",
+        "description": "Reenvia um evento da dead-letter queue ou com falha.",
+        "tags": ["Webhooks"],
+        "responses": {
+          "200": { "description": "Reenvio agendado." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/keys": {
+      "post": {
+        "operationId": "createApiKey",
+        "summary": "Cria API key",
+        "description": "Cria uma nova chave de API. A chave completa e retornada apenas nesta resposta.",
+        "tags": ["Chaves"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateApiKeyRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Chave criada. Guarde o campo key: nao sera exibido novamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiKey" },
+                    { "type": "object", "properties": { "key": { "type": "string", "description": "Chave completa (so aparece aqui).", "example": "sk_live_4eC39HqLyjWDarjtT1zdp7dc" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "get": {
+        "operationId": "listApiKeys",
+        "summary": "Lista chaves",
+        "description": "Lista chaves com prefixo e lastUsedAt. Nunca retorna a chave completa.",
+        "tags": ["Chaves"],
+        "responses": {
+          "200": {
+            "description": "Lista de chaves.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/ApiKey" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/keys/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "delete": {
+        "operationId": "revokeApiKey",
+        "summary": "Revoga chave",
+        "description": "Revogacao imediata. Requisicoes em andamento sao rejeitadas na proxima validacao.",
+        "tags": ["Chaves"],
+        "responses": {
+          "204": { "description": "Chave revogada." },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "Info da chave autenticada",
+        "description": "Retorna informacoes do tenant e scopes da chave em uso.",
+        "tags": ["Meta"],
+        "responses": {
+          "200": {
+            "description": "Informacoes da chave.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keyId": { "type": "string" },
+                    "name": { "type": "string" },
+                    "scopes": { "type": "array", "items": { "type": "string" } },
+                    "mode": { "type": "string", "enum": ["test", "live"] },
+                    "tenantId": { "type": "string" },
+                    "createdAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Status do servico",
+        "description": "Nao requer autenticacao. Use para monitoramento.",
+        "tags": ["Meta"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Servico operacional.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok", "degraded", "down"] },
+                    "version": { "type": "string", "example": "1.0.0" },
+                    "timestamp": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    { "name": "Instancias", "description": "Gerenciar numeros de WhatsApp conectados." },
+    { "name": "Mensagens", "description": "Enviar e consultar mensagens." },
+    { "name": "Numeros", "description": "Verificar numeros e perfis de contato." },
+    { "name": "Webhooks", "description": "Gerenciar endpoints de entrega de eventos." },
+    { "name": "Chaves", "description": "Gerenciar chaves de API (requer scope *)." },
+    { "name": "Meta", "description": "Informacoes da chave e status do servico." }
+  ]
+}

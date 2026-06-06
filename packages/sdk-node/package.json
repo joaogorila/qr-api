@@ -1,0 +1,30 @@
+{
+  "name": "@flipt/qr-api",
+  "version": "0.1.0",
+  "description": "SDK oficial Node/TypeScript para a QR-API (envio de WhatsApp via QR/Evolution)",
+  "keywords": [
+    "whatsapp",
+    "qr-api",
+    "flipt",
+    "sdk"
+  ],
+  "homepage": "https://docs.qrapi.flipt.com.br",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

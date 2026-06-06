@@ -1,0 +1,21 @@
+{
+    "name": "flipt/qr-api",
+    "description": "SDK oficial PHP para a QR-API (WhatsApp API da Flipt). Usa cURL nativo, zero dependencias de runtime.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["whatsapp", "qr-api", "qrapi", "messaging", "flipt"],
+    "homepage": "https://qrapi.flipt.com.br",
+    "authors": [
+        { "name": "Flipt" }
+    ],
+    "require": {
+        "php": ">=8.0",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Flipt\\QrApi\\": "src/"
+        }
+    }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "@flipt/qr-api-mcp",
+  "version": "0.1.0",
+  "description": "MCP server da QR-API — tools nativas para Claude Code, Cursor, Cline, Windsurf",
+  "keywords": [
+    "whatsapp",
+    "mcp",
+    "qr-api",
+    "flipt",
+    "claude",
+    "cursor"
+  ],
+  "homepage": "https://docs.qrapi.flipt.com.br",
+  "license": "MIT",
+  "bin": {
+    "qr-api-mcp": "dist/server.js"
+  },
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/server.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@flipt/qr-api": "file:../sdk-node",
+    "@modelcontextprotocol/sdk": "^1.9.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

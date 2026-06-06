@@ -1,0 +1,276 @@
+// QR-API — schema Prisma standalone
+// Versao standalone: QrApiInstance guarda instanceName/phone/evolutionInstanceId diretamente
+// (nao referencia WhatsAppQrAccount — o banco e dedicado)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Instancias ──────────────────────────────────────────────────────────────
+
+model QrApiInstance {
+  id                  String              @id @default(uuid())
+  tenantId            String
+  name                String
+  phone               String?             // numero E.164 apos conexao
+  evolutionInstanceId String?             @unique // nome da instancia no Evolution (qrapi-<id>)
+  inboundMode         QrApiInboundMode    @default(OFF)
+  status              QrApiInstanceStatus @default(PROVISIONING)
+  healthScore         Int                 @default(100)
+  warmupUntil         DateTime?
+  dailyLimit          Int                 @default(1000)
+  revokedAt           DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  messages  QrApiMessage[]
+  webhooks  QrApiWebhook[]
+  usageRecords QrApiUsageRecord[]
+
+  @@index([tenantId, revokedAt])
+  @@map("qr_api_instances")
+}
+
+enum QrApiInboundMode {
+  OFF
+  FOLLOWFY
+  WEBHOOK
+}
+
+enum QrApiInstanceStatus {
+  PROVISIONING
+  QR_PENDING
+  CONNECTED
+  DEGRADED
+  DISCONNECTED
+  BANNED
+}
+
+// ─── API Keys ────────────────────────────────────────────────────────────────
+
+model QrApiKey {
+  id         String       @id @default(uuid())
+  tenantId   String
+  name       String
+  keyHash    String       @unique  // SHA256(sk_live_...)
+  keyPrefix  String               // sk_live_ab12... (exibicao segura)
+  mode       QrApiKeyMode @default(LIVE)
+  scopes     String[]     @default([])
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([tenantId, revokedAt])
+  @@map("qr_api_keys")
+}
+
+enum QrApiKeyMode {
+  TEST
+  LIVE
+}
+
+// ─── Idempotencia ─────────────────────────────────────────────────────────────
+
+model QrApiIdempotencyKey {
+  id           String   @id @default(uuid())
+  tenantId     String
+  instanceId   String
+  key          String
+  requestHash  String
+  responseCode Int?
+  responseBody Json?
+  status       String   @default("processing")  // processing | completed
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@unique([instanceId, key])
+  @@index([expiresAt])
+  @@map("qr_api_idempotency_keys")
+}
+
+// ─── Mensagens ────────────────────────────────────────────────────────────────
+
+model QrApiMessage {
+  id          String             @id @default(uuid())
+  tenantId    String
+  instanceId  String
+  externalId  String?
+  to          String
+  type        String
+  payload     Json
+  status      QrApiMessageStatus @default(QUEUED)
+  evolutionId String?
+  error       Json?
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  instance QrApiInstance @relation(fields: [instanceId], references: [id])
+
+  @@index([instanceId, status])
+  @@index([tenantId, createdAt])
+  @@map("qr_api_messages")
+}
+
+enum QrApiMessageStatus {
+  QUEUED
+  SCHEDULED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  CANCELLED
+}
+
+// ─── Webhooks de saida ────────────────────────────────────────────────────────
+
+model QrApiWebhook {
+  id         String   @id @default(uuid())
+  tenantId   String
+  instanceId String
+  url        String
+  secret     String
+  events     String[] @default(["*"])
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  instance   QrApiInstance         @relation(fields: [instanceId], references: [id])
+  deliveries QrApiWebhookDelivery[]
+
+  @@index([instanceId, active])
+  @@map("qr_api_webhooks")
+}
+
+model QrApiWebhookDelivery {
+  id          String    @id @default(uuid())
+  webhookId   String
+  event       String
+  payload     Json
+  attempts    Int       @default(0)
+  status      String    @default("pending")  // pending | delivered | failed | dead
+  nextRetryAt DateTime?
+  lastStatus  Int?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+
+  webhook QrApiWebhook @relation(fields: [webhookId], references: [id])
+
+  @@index([status, nextRetryAt])
+  @@index([webhookId, createdAt])
+  @@map("qr_api_webhook_deliveries")
+}
+
+// ─── Contas / Portal SaaS (Onda 4) ─────────────────────────────────────────────
+
+// Account = tenant (organizacao cliente do SaaS). account.id == tenantId usado em todo o resto.
+model Account {
+  id           String   @id @default(uuid())
+  name         String
+  // Stripe
+  stripeCustomerId String? @unique
+  suspendedAt  DateTime?           // suspensa pelo operador (bloqueia envio/provisionamento)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users        User[]
+  subscription Subscription?
+  invoices     Invoice[]
+
+  @@map("qr_api_accounts")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  accountId    String
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(OWNER)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+  @@map("qr_api_users")
+}
+
+enum UserRole {
+  OWNER
+  MEMBER
+}
+
+// Assinatura por conta (plano por numero, estilo Z-API). quantity = numeros contratados.
+model Subscription {
+  id                   String             @id @default(uuid())
+  accountId            String             @unique
+  planId               String             // starter | pro | business
+  status               SubscriptionStatus @default(TRIALING)
+  quantity             Int                @default(1) // numeros contratados
+  stripeSubscriptionId String?            @unique
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  trialEndsAt          DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@map("qr_api_subscriptions")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+// Historico de faturas (espelho leve do Stripe, para exibir no portal)
+model Invoice {
+  id            String   @id @default(uuid())
+  accountId     String
+  stripeInvoiceId String? @unique
+  amountCents   Int
+  currency      String   @default("brl")
+  status        String   // paid | open | void | uncollectible
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  hostedUrl     String?
+  createdAt     DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, createdAt])
+  @@map("qr_api_invoices")
+}
+
+// ─── Metering / billing ───────────────────────────────────────────────────────
+
+model QrApiUsageRecord {
+  id                String   @id @default(uuid())
+  tenantId          String
+  instanceId        String
+  date              DateTime
+  messagesSent      Int      @default(0)
+  messagesFailed    Int      @default(0)
+  webhooksDelivered Int      @default(0)
+
+  instance QrApiInstance @relation(fields: [instanceId], references: [id])
+
+  @@unique([instanceId, date])
+  @@map("qr_api_usage_records")
+}

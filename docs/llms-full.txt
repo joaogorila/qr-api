@@ -1,0 +1,1096 @@
+# QR-API - Documentacao Completa (LLM-optimized)
+
+Esta e a referencia completa da QR-API da Flipt. Um agente que leia este arquivo consegue integrar completamente a API sem consultar nenhuma outra fonte.
+
+---
+
+## 1. O que e a QR-API
+
+A QR-API e a API de WhatsApp da Flipt baseada em conexao por QR Code (WhatsApp Web / protocolo multi-device). Voce conecta um numero de WhatsApp comum escaneando um QR Code uma vez e passa a enviar mensagens a partir dos seus sistemas (ERP, e-commerce, CRM, backend proprio) com chamadas HTTP simples.
+
+Modelo de cobranca: assinatura fixa por numero conectado, mensagens ilimitadas. Sem tarifa por conversa como a API Oficial da Meta.
+
+IMPORTANTE: a abordagem por QR Code usa o WhatsApp Web e nao e sancionada pela Meta (viola os Termos de Servico do WhatsApp). O risco e estrutural e nao pode ser 100% eliminado, so fortemente mitigado. Para zero risco, use a API Oficial (Cloud API).
+
+### Diferenciais tecnicos vs. concorrentes (Z-API)
+- Webhook com HMAC-SHA256 (X-Qr-Signature), retry automatico com backoff, dead-letter queue e painel de entregas.
+- Idempotency-Key em todos os POST: sem mensagem duplicada em retries.
+- Auth por Bearer header (nunca na URL, onde vaza em logs de proxy).
+- Erros estruturados com tipo, codigo, campo (param) e doc_url.
+- request_id em toda resposta para rastrear problemas com o suporte.
+- Sandbox gratuita (sk_test_): testa a integracao sem enviar mensagem real.
+- Anti-ban como produto: warmup automatico, pacing com jitter, health score em tempo real, throttle preditivo.
+- Rate-limit headers (RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset) em toda resposta.
+
+---
+
+## 2. URLs base
+
+Existem dois deploys do mesmo produto:
+
+| Deploy | URL base | Quando usar |
+|--------|----------|-------------|
+| Embedded (dentro do Followfy) | https://api.flipt.com.br/api/qrapi/v1 | Clientes Flipt/Followfy |
+| Standalone (produto qr-api) | https://api.qrapi.flipt.com.br/v1 | SaaS publico |
+
+Nos exemplos deste documento usamos https://api.qrapi.flipt.com.br/v1. Para o deploy embedded, substitua pelo prefixo correspondente.
+
+---
+
+## 3. Autenticacao
+
+### Formato
+Toda requisicao exige o header:
+```
+Authorization: Bearer sk_live_4eC39HqLyjWDarjtT1zdp7dc
+```
+
+Nunca coloque a chave na URL (ex.: ?token=sk_live_xxx). A QR-API rejeita credencial na URL.
+
+### Tipos de chave
+| Prefixo | Ambiente | Comportamento |
+|---------|----------|---------------|
+| sk_test_ | Sandbox | Nao envia mensagem real. Ideal para CI e desenvolvimento. Gratis. |
+| sk_live_ | Producao | Envia de verdade. |
+
+A chave e exibida uma unica vez na criacao. Guardamos apenas o hash SHA-256 mais o prefixo (ex.: sk_live_4eC3...) para exibicao. Se vazar, revogue imediatamente via DELETE /keys/{id}. Revogacao e imediata.
+
+### Scopes
+Cada chave carrega uma lista de scopes (principio do menor privilegio):
+
+| Scope | Permite |
+|-------|---------|
+| messages:send | Enviar mensagens |
+| messages:read | Consultar status de mensagens |
+| instances:read | Listar/ver instancias e QR |
+| instances:write | Criar/editar/reiniciar/remover instancias |
+| webhooks:write | Gerenciar webhooks |
+| phones:read | Validar numeros |
+| * | Tudo (apenas em chaves administrativas internas) |
+
+Requisicao sem o scope necessario retorna 403 insufficient_scope.
+
+### Erros de autenticacao
+| HTTP | code | Quando |
+|------|------|--------|
+| 401 | missing_api_key | Sem header Authorization |
+| 401 | invalid_api_key | Chave nao existe ou foi revogada |
+| 401 | expired_api_key | Chave com expiresAt no passado |
+| 403 | insufficient_scope | Chave valida, mas sem o scope da operacao |
+
+---
+
+## 4. Formato de erro estruturado
+
+Toda falha retorna corpo JSON previsivel:
+```json
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "missing_parameter",
+    "message": "O campo 'to' e obrigatorio.",
+    "param": "to",
+    "doc_url": "https://docs.qrapi.flipt.com.br/send-messages"
+  },
+  "request_id": "req_8f2a1c"
+}
+```
+
+Sempre inclua o request_id ao falar com o suporte.
+
+### Tipos de erro
+| type | HTTP | Significado |
+|------|------|-------------|
+| authentication_error | 401 | Chave ausente/invalida/expirada |
+| permission_error | 403 | Scope insuficiente |
+| invalid_request_error | 400/422 | Corpo/parametro invalido (param indica o campo) |
+| not_found_error | 404 | Recurso inexistente |
+| idempotency_error | 409 | Idempotency-Key reusada com corpo diferente |
+| rate_limit_error | 429 | Excedeu rate limit ou dailyLimit |
+| instance_error | 409 | Instancia desconectada/banida/em warmup |
+| api_error | 500 | Erro interno (tente novamente; e seguro com Idempotency-Key) |
+
+### Codigos comuns
+missing_api_key, invalid_api_key, expired_api_key, insufficient_scope, missing_parameter, invalid_parameter, unsupported_message_type, instance_not_connected, instance_in_warmup, daily_limit_reached, number_not_on_whatsapp, idempotency_key_reused.
+
+---
+
+## 5. Idempotencia
+
+Para evitar mensagem duplicada em retries de rede, envie um header unico por operacao:
+```
+Idempotency-Key: 3f8c1e9a-7b2d-4c6e-9a1f-2b3c4d5e6f70
+```
+Use UUID v4. Aplica-se a todos os POST que criam algo (envio, instancia, webhook).
+
+Regras:
+- Mesma key + mesmo corpo: retorna a resposta original sem reprocessar.
+- Mesma key + corpo diferente: retorna 409 idempotency_error.
+- Keys expiram em 24 horas.
+
+Sempre use Idempotency-Key em producao. Em API de WhatsApp, retry cego = cliente recebe a mensagem duas vezes.
+
+---
+
+## 6. Rate limits
+
+Limite por API key (token bucket) mais limite por instancia (dailyLimit, que e tambem anti-ban).
+
+Toda resposta traz headers:
+```
+RateLimit-Limit: 10
+RateLimit-Remaining: 7
+RateLimit-Reset: 1733405200
+```
+
+No 429:
+```
+Retry-After: 3
+```
+
+Taxa padrao: 10 req/s por chave. Para volume alto, use POST /messages/bulk (a fila aplica pacing automaticamente).
+
+Quando daily_limit_reached, o excedente pode ser agendado com scheduledAt na mensagem.
+
+---
+
+## 7. Paginacao por cursor
+
+Todas as listagens usam cursor, nao offset:
+```
+GET /messages?limit=50&starting_after=msg_abc
+```
+Resposta:
+```json
+{
+  "data": [ ... ],
+  "has_more": true,
+  "next_cursor": "msg_xyz"
+}
+```
+
+---
+
+## 8. Headers de resposta padrao
+
+Toda resposta inclui:
+- Request-Id: identificador unico da requisicao (inclua no suporte)
+- RateLimit-Limit: teto de requisicoes por segundo
+- RateLimit-Remaining: quanto sobrou na janela atual
+- RateLimit-Reset: timestamp Unix quando o contador reseta
+- Retry-After: (apenas no 429) segundos para tentar novamente
+
+---
+
+## 9. Instancias
+
+Uma instancia representa um numero de WhatsApp conectado. Cada instancia roda em conexao dedicada.
+
+### Ciclo de vida
+```
+provisioning -> qr_pending -> connected -> (degraded) -> disconnected
+                                    |-> banned
+```
+
+| Status | Significado |
+|--------|-------------|
+| provisioning | Preparando a conexao dedicada |
+| qr_pending | Pronto para escanear o QR |
+| connected | Numero ativo, pode enviar |
+| degraded | Conectado mas com sinais de risco (healthScore baixo) |
+| disconnected | Caiu; tentamos reconectar automaticamente |
+| banned | Numero bloqueado pelo WhatsApp |
+
+### Criar instancia
+```
+POST /instances
+Authorization: Bearer sk_live_xxx
+Idempotency-Key: <uuid>
+Content-Type: application/json
+```
+Corpo:
+```json
+{
+  "name": "Meu ERP",
+  "inboundMode": "off",
+  "dailyLimit": 1000,
+  "webhook": {
+    "url": "https://meusistema.com/wh",
+    "events": ["message.status", "message.received"]
+  }
+}
+```
+Campos:
+- name (string, obrigatorio): nome da instancia para identificacao
+- inboundMode (string, obrigatorio): off | webhook | followfy
+- dailyLimit (int, opcional): teto diario de mensagens; o warmup ignora e usa o limite automatico nos primeiros dias
+- webhook (objeto, opcional): atalho para ja registrar um webhook na criacao
+
+Resposta 201:
+```json
+{
+  "id": "inst_123",
+  "name": "Meu ERP",
+  "status": "qr_pending",
+  "inboundMode": "off",
+  "healthScore": 100,
+  "warmupUntil": "2026-06-10T00:00:00Z",
+  "dailyLimit": 200,
+  "createdAt": "2026-06-05T12:00:00Z"
+}
+```
+
+Nota: numero novo entra em warmup automatico. O dailyLimit comeca baixo e cresce em ~5 dias.
+
+### Obter QR Code
+```
+GET /instances/{id}/qr
+Authorization: Bearer sk_live_xxx
+```
+Resposta:
+```json
+{
+  "qr": "data:image/png;base64,iVBORw0KG...",
+  "expiresIn": 60
+}
+```
+Exiba o QR e escaneie em WhatsApp > Aparelhos conectados > Conectar um aparelho. O QR rotaciona; chame novamente se expirar. Ao conectar, o status vira connected e voce recebe instance.connected no webhook.
+
+### Pareamento por codigo (sem QR)
+```
+POST /instances/{id}/pair
+{ "phone": "5511999998888" }
+```
+Resposta:
+```json
+{ "pairingCode": "ABCD-1234" }
+```
+Digite o codigo no celular em WhatsApp > Aparelhos conectados > Conectar com numero de telefone.
+
+### Modos de inbound
+| inboundMode | Para onde vai a resposta |
+|-------------|--------------------------|
+| off | Apenas para o celular do dono (evento message.received pode ser enviado informativamente) |
+| webhook | Apenas para o seu webhook registrado |
+| followfy | Para o inbox do Followfy (atendimento humano) mais webhook |
+
+### Atualizar instancia
+```
+PATCH /instances/{id}
+{ "inboundMode": "webhook", "dailyLimit": 5000 }
+```
+
+### Detalhe da instancia (com health)
+```
+GET /instances/{id}
+```
+Resposta:
+```json
+{
+  "id": "inst_123",
+  "status": "connected",
+  "healthScore": 87,
+  "phone": "5511999998888",
+  "messagesToday": 142,
+  "dailyLimit": 1000,
+  "lastSeenAt": "2026-06-05T13:40:00Z"
+}
+```
+healthScore abaixo de ~60 sinaliza risco de banimento.
+
+### Outras operacoes de instancia
+```
+GET    /instances              Lista (paginacao cursor)
+POST   /instances/{id}/restart Reinicia conexao
+POST   /instances/{id}/disconnect Desconecta numero
+DELETE /instances/{id}         Remove instancia
+```
+
+---
+
+## 10. Enviar mensagens
+
+Todo envio e um POST /messages. O campo type define o formato.
+
+### Cabecalhos obrigatorios
+```
+POST /messages
+Authorization: Bearer sk_live_xxx
+Idempotency-Key: <uuid>
+Content-Type: application/json
+```
+
+### Campos comuns a todos os tipos
+| Campo | Tipo | Obrigatorio | Descricao |
+|-------|------|-------------|-----------|
+| instanceId | string | sim | Instancia que envia |
+| to | string | sim | Numero destino em E.164 (5511999998888) ou JID de grupo |
+| type | string | sim | Tipo da mensagem (ver abaixo) |
+| externalId | string | nao | Seu ID para dedup/rastreio |
+| scheduledAt | ISO8601 | nao | Agenda o envio |
+| delayTyping | int (ms) | nao | Simula digitacao antes de enviar (mais humano, anti-ban) |
+
+Resposta padrao 201:
+```json
+{ "id": "msg_abc", "status": "queued", "request_id": "req_x1" }
+```
+
+### Estados da mensagem
+queued -> scheduled -> sending -> sent -> delivered -> read
+ou: failed
+ou: cancelled
+
+Cada transicao relevante dispara message.status no webhook.
+
+### Tipos de mensagem
+
+#### text
+```json
+{
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "type": "text",
+  "text": "Seu pedido #1234 saiu para entrega."
+}
+```
+Link com preview: inclua a URL no text (preview automatico) ou use "linkPreview": true.
+
+#### image
+```json
+{
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "type": "image",
+  "media": { "url": "https://cdn.site.com/nf.jpg" },
+  "caption": "Sua nota fiscal"
+}
+```
+media aceita url (recomendado) ou base64. Limite: 100 MB.
+
+#### video
+```json
+{
+  "type": "video",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "media": { "url": "https://cdn.site.com/video.mp4" },
+  "caption": "Confira nosso produto"
+}
+```
+
+#### audio
+```json
+{
+  "type": "audio",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "media": { "url": "https://cdn.site.com/audio.ogg" },
+  "ptt": true
+}
+```
+ptt: true converte para mensagem de voz (bolha roxa).
+
+#### document
+```json
+{
+  "type": "document",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "media": { "url": "https://cdn.site.com/boleto.pdf" },
+  "filename": "boleto.pdf"
+}
+```
+
+#### sticker
+```json
+{
+  "type": "sticker",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "media": { "url": "https://cdn.site.com/sticker.webp" }
+}
+```
+
+#### location
+```json
+{
+  "type": "location",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "latitude": -23.561,
+  "longitude": -46.656,
+  "name": "Loja Centro",
+  "address": "Av. Paulista, 1000"
+}
+```
+
+#### contact (vCard)
+```json
+{
+  "type": "contact",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "contact": { "fullName": "Suporte Flipt", "phone": "5511333334444" }
+}
+```
+
+#### buttons
+```json
+{
+  "type": "buttons",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "text": "Confirma o pedido?",
+  "buttons": [
+    { "id": "yes", "label": "Sim" },
+    { "id": "no", "label": "Nao" }
+  ]
+}
+```
+
+#### list
+```json
+{
+  "type": "list",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "text": "Escolha um horario",
+  "buttonText": "Ver horarios",
+  "sections": [
+    {
+      "title": "Manha",
+      "rows": [
+        { "id": "9h", "title": "09:00" },
+        { "id": "10h", "title": "10:00" }
+      ]
+    }
+  ]
+}
+```
+
+#### poll (enquete)
+```json
+{
+  "type": "poll",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "question": "Qual sabor?",
+  "options": ["Chocolate", "Morango", "Baunilha"],
+  "multiSelect": false
+}
+```
+
+#### pix (Brasil)
+```json
+{
+  "type": "pix",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "pix": {
+    "key": "joao@flipt.com.br",
+    "keyType": "email",
+    "name": "Flipt",
+    "amount": 49.90
+  }
+}
+```
+keyType aceita: cpf, cnpj, email, phone, random.
+
+#### reaction
+```json
+{
+  "type": "reaction",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "messageId": "msg_xyz",
+  "emoji": "like"
+}
+```
+
+#### reply
+```json
+{
+  "type": "reply",
+  "instanceId": "inst_123",
+  "to": "5511999998888",
+  "replyTo": "msg_xyz",
+  "text": "Confirmado!"
+}
+```
+
+### Envio em lote
+```
+POST /messages/bulk
+Authorization: Bearer sk_live_xxx
+Content-Type: application/json
+```
+```json
+{
+  "instanceId": "inst_123",
+  "messages": [
+    { "to": "5511999990001", "type": "text", "text": "Ola Joao" },
+    { "to": "5511999990002", "type": "text", "text": "Ola Maria" }
+  ]
+}
+```
+O lote entra na fila com pacing anti-ban automatico (3-8s entre mensagens, com jitter, pausa periodica). Resposta retorna um id por mensagem.
+
+### Outras operacoes de mensagem
+```
+GET    /messages/{id}        Status atual
+GET    /messages             Lista (cursor; filtros: instanceId, status, to)
+DELETE /messages/{id}        Cancela se QUEUED/SCHEDULED; senao apaga para todos
+POST   /messages/{id}/read   Marca conversa como lida
+```
+
+---
+
+## 11. Webhooks
+
+Webhooks entregam eventos ao seu sistema em tempo real com garantias de entrega.
+
+### Registrar webhook
+```
+POST /webhooks
+Authorization: Bearer sk_live_xxx
+Idempotency-Key: <uuid>
+Content-Type: application/json
+```
+```json
+{
+  "instanceId": "inst_123",
+  "url": "https://meusistema.com/webhooks/whatsapp",
+  "events": ["message.received", "message.status", "instance.connected"]
+}
+```
+Use events: ["*"] para receber todos os eventos.
+
+Resposta 201:
+```json
+{
+  "id": "wh_1",
+  "instanceId": "inst_123",
+  "url": "https://meusistema.com/webhooks/whatsapp",
+  "events": ["message.received", "message.status", "instance.connected"],
+  "secret": "whsec_abc...",
+  "active": true,
+  "createdAt": "2026-06-05T12:00:00Z"
+}
+```
+GUARDE o campo secret. Ele e usado para validar a assinatura HMAC e so e exibido uma vez.
+
+### Eventos disponiveis
+| Evento | Quando | Dados principais |
+|--------|--------|-----------------|
+| message.received | Cliente respondeu/enviou | from, type, text/media, messageId, timestamp |
+| message.status | Mudanca de status de envio | id, status (sent/delivered/read/failed), error? |
+| message.sent | Confirmacao de saida | id, evolutionId |
+| instance.connected | Numero conectou | instanceId, phone |
+| instance.disconnected | Caiu | instanceId, reason |
+| instance.qr | Novo QR disponivel | instanceId, qr |
+| instance.health | Health score mudou de faixa | instanceId, healthScore, level |
+| instance.banned | Numero banido | instanceId |
+
+### Formato do payload
+```json
+{
+  "id": "evt_9f8a",
+  "event": "message.received",
+  "instanceId": "inst_123",
+  "createdAt": "2026-06-05T13:45:02Z",
+  "data": {
+    "from": "5511999998888",
+    "messageId": "wamid....",
+    "type": "text",
+    "text": "Pode confirmar o horario?"
+  },
+  "request_id": "req_abc"
+}
+```
+
+### Validar assinatura HMAC
+Cada requisicao de webhook inclui:
+```
+X-Qr-Signature: v1=4f3c...  (HMAC-SHA256 do corpo bruto com o secret)
+X-Qr-Timestamp: 1733405102
+```
+
+Verificacao em Node.js:
+```js
+import crypto from "crypto";
+
+function verifyWebhook(rawBody, signatureHeader, timestampHeader, secret) {
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody)
+    .digest("hex");
+  const received = signatureHeader.replace("v1=", "");
+  const isValid = crypto.timingSafeEqual(
+    Buffer.from(expected, "hex"),
+    Buffer.from(received, "hex")
+  );
+  const age = Math.abs(Date.now() / 1000 - Number(timestampHeader));
+  return isValid && age < 300; // rejeita se mais de 5 minutos de diferenca
+}
+```
+
+Rejeite requisicoes com assinatura invalida ou timestamp muito antigo (protecao contra replay attack).
+
+### Politica de retry
+- Consideramos sucesso qualquer resposta 2xx (responda rapidamente, processe de forma assincrona).
+- Nao-2xx ou timeout (mais de 10s): reentrega com backoff exponencial: ~1s, 2s, 4s, 8s, ... ate ~6h, por ate 24h.
+- Esgotou: o evento vai para a dead-letter queue e fica disponivel no painel para reenvio manual.
+
+### Painel de entregas
+```
+GET  /webhooks/{id}/deliveries               Ultimas entregas (status, tentativas, HTTP)
+POST /webhooks/{id}/deliveries/{d}/retry     Reenvio manual
+```
+
+### Outras operacoes de webhook
+```
+GET    /webhooks            Lista
+PATCH  /webhooks/{id}       Atualiza url/events/active
+DELETE /webhooks/{id}       Remove
+```
+
+---
+
+## 12. Numeros e contatos
+
+### Verificar se numero tem WhatsApp
+```
+GET /phones/{number}/exists
+Authorization: Bearer sk_live_xxx
+```
+number no formato E.164 sem + (ex.: 5511999998888).
+
+Resposta:
+```json
+{ "number": "5511999998888", "exists": true, "jid": "5511999998888@s.whatsapp.net" }
+```
+
+### Verificacao em lote
+```
+POST /phones/exists
+Authorization: Bearer sk_live_xxx
+Content-Type: application/json
+```
+```json
+{ "numbers": ["5511999998888", "5511999990001"] }
+```
+Resposta:
+```json
+{
+  "results": [
+    { "number": "5511999998888", "exists": true },
+    { "number": "5511999990001", "exists": false }
+  ]
+}
+```
+
+### Perfil de contato
+```
+GET /contacts/{number}
+Authorization: Bearer sk_live_xxx
+```
+Retorna nome publico e URL da foto de perfil (se disponivel).
+
+### Presenca digitando
+```
+POST /typing
+Authorization: Bearer sk_live_xxx
+Content-Type: application/json
+
+{ "instanceId": "inst_123", "to": "5511999998888" }
+```
+
+---
+
+## 13. Chaves de API (gerenciamento)
+
+Requer scope *.
+
+### Criar chave
+```
+POST /keys
+Authorization: Bearer sk_live_xxx (chave admin com scope *)
+Content-Type: application/json
+
+{
+  "name": "Integracao ERP",
+  "scopes": ["messages:send", "instances:read"],
+  "expiresAt": "2027-06-05T00:00:00Z"
+}
+```
+Resposta (a chave so e exibida uma vez):
+```json
+{
+  "id": "key_abc",
+  "name": "Integracao ERP",
+  "key": "sk_live_4eC39HqLyjWDarjtT1zdp7dc",
+  "prefix": "sk_live_4eC3",
+  "scopes": ["messages:send", "instances:read"],
+  "createdAt": "2026-06-05T12:00:00Z"
+}
+```
+
+### Listar chaves
+```
+GET /keys
+```
+Retorna prefixo, scopes, lastUsedAt (nunca a chave completa).
+
+### Revogar chave
+```
+DELETE /keys/{id}
+```
+Revogacao e imediata. Requisicoes em andamento com a chave sao rejeitadas na proxima validacao.
+
+---
+
+## 14. Meta (info da chave e health)
+
+### Informacoes da chave autenticada
+```
+GET /me
+Authorization: Bearer sk_live_xxx
+```
+Resposta:
+```json
+{
+  "keyId": "key_abc",
+  "name": "Integracao ERP",
+  "scopes": ["messages:send"],
+  "mode": "live",
+  "tenantId": "tenant_xyz",
+  "createdAt": "2026-06-05T12:00:00Z"
+}
+```
+
+### Status do servico
+```
+GET /health
+```
+Nao requer autenticacao. Resposta:
+```json
+{ "status": "ok", "version": "1.0.0", "timestamp": "2026-06-05T14:00:00Z" }
+```
+
+---
+
+## 15. Anti-ban e confiabilidade
+
+### Por que numeros sao banidos
+O antispam do WhatsApp detecta comportamento robotico:
+- Rajadas de mensagens em curto intervalo.
+- Numero novo disparando alto volume.
+- Mensagem identica para muitos destinos.
+- Baixa razao recebidas/enviadas (so dispara, ninguem responde).
+- Muitos bloqueios/denuncias dos destinatarios.
+
+### O que a QR-API faz automaticamente
+
+1. Warmup automatico: numero novo entra em rampa. O dailyLimit comeca baixo e cresce em ~5 dias (campo warmupUntil na instancia). Numero recem-desbanido recomeça o warmup. Voce nao precisa configurar nada.
+
+2. Pacing na fila: todo envio passa por fila com 3-8s entre mensagens com jitter (intervalo aleatorio, nao fixo), pausa periodica a cada ~100 mensagens, concorrencia baixa por numero. Opcao delayTyping para simular digitacao.
+
+3. Health score em tempo real: cada instancia tem healthScore (0-100) calculado a partir de sinais de risco.
+
+| Faixa | Nivel | Acao |
+|-------|-------|------|
+| 80-100 | saudavel | opera normal |
+| 60-79 | atencao | reduza volume, varie conteudo |
+| 40-59 | risco | pausamos automaticamente parte do trafego |
+| abaixo de 40 | critico | throttle agressivo e alerta instance.health |
+
+4. Throttle preditivo: ao detectar padrao de risco, reduzimos o ritmo antes do ban e emitimos instance.health. Voce e avisado, nao surpreendido.
+
+5. Isolamento por numero: cada instancia roda em conexao dedicada. Falha de um numero nao afeta os outros.
+
+### Boas praticas do seu lado
+- Varie o conteudo: nunca o mesmo texto para todos. Troque saudacao, ordem das frases.
+- Opt-in: so mande para quem pediu/comprou. Inclua opt-out ("responda SAIR").
+- Estimule resposta: perguntas e botoes melhoram a razao in/out.
+- Separe os numeros: um para broadcast, outro para atendimento.
+- Prefira media.url a base64 e evite links encurtados suspeitos.
+- Respeite horarios: evite madrugada e rajadas.
+
+---
+
+## 16. SDK Node (@flipt/qr-api)
+
+Instalacao:
+```bash
+npm install @flipt/qr-api
+# ou
+pnpm add @flipt/qr-api
+```
+
+Uso basico:
+```js
+import QrApi from "@flipt/qr-api";
+
+const client = new QrApi({ apiKey: process.env.QR_API_KEY });
+
+// Criar instancia
+const instance = await client.instances.create({
+  name: "Meu ERP",
+  inboundMode: "off",
+});
+
+// Obter QR
+const { qr } = await client.instances.getQr(instance.id);
+
+// Enviar mensagem
+const msg = await client.messages.send({
+  instanceId: instance.id,
+  to: "5511999998888",
+  type: "text",
+  text: "Seu pedido saiu para entrega.",
+});
+
+// Verificar status
+const status = await client.messages.get(msg.id);
+
+// Enviar em lote
+const bulk = await client.messages.sendBulk({
+  instanceId: instance.id,
+  messages: [
+    { to: "5511999990001", type: "text", text: "Ola Joao" },
+    { to: "5511999990002", type: "text", text: "Ola Maria" },
+  ],
+});
+
+// Registrar webhook
+const webhook = await client.webhooks.create({
+  instanceId: instance.id,
+  url: "https://meusistema.com/wh",
+  events: ["message.status", "message.received"],
+});
+```
+
+O SDK gera Idempotency-Key automaticamente para todos os POST. Tipos TypeScript completos incluidos.
+
+---
+
+## 17. MCP Server (@flipt/qr-api-mcp)
+
+O MCP server faz a QR-API aparecer como ferramenta nativa dentro de Claude Code, Cursor, Cline, Windsurf e qualquer cliente MCP.
+
+### Instalacao
+```json
+{
+  "mcpServers": {
+    "qr-api": {
+      "command": "npx",
+      "args": ["-y", "@flipt/qr-api-mcp"],
+      "env": {
+        "QR_API_KEY": "sk_live_xxx",
+        "QR_API_BASE_URL": "https://api.qrapi.flipt.com.br/v1"
+      }
+    }
+  }
+}
+```
+
+### Tools disponiveis
+| Tool | Descricao | Endpoint |
+|------|-----------|----------|
+| qr_send_message | Envia mensagem (todos os types) | POST /messages |
+| qr_send_bulk | Envio em lote com pacing | POST /messages/bulk |
+| qr_message_status | Status de uma mensagem | GET /messages/{id} |
+| qr_create_instance | Cria instancia | POST /instances |
+| qr_get_qr | Retorna QR para conectar | GET /instances/{id}/qr |
+| qr_instance_status | Status e healthScore | GET /instances/{id} |
+| qr_check_number | Numero tem WhatsApp? | GET /phones/{n}/exists |
+| qr_register_webhook | Registra webhook | POST /webhooks |
+| qr_list_instances | Lista instancias | GET /instances |
+
+### Resources MCP
+- qrapi://docs/llms-full: documentacao inteira (este arquivo) como resource.
+- qrapi://openapi: contrato OpenAPI 3.1.
+
+---
+
+## 18. Quickstart completo (curl)
+
+### Passo 1: criar instancia e conectar
+```bash
+# Criar instancia
+curl -X POST https://api.qrapi.flipt.com.br/v1/instances \
+  -H "Authorization: Bearer sk_test_xxx" \
+  -H "Idempotency-Key: $(python3 -c 'import uuid; print(uuid.uuid4())')" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Meu ERP", "inboundMode": "off"}'
+
+# Pegar QR (substitua inst_123 pelo id retornado acima)
+curl https://api.qrapi.flipt.com.br/v1/instances/inst_123/qr \
+  -H "Authorization: Bearer sk_test_xxx"
+
+# Escanear o QR no celular (WhatsApp > Aparelhos conectados > Conectar)
+```
+
+### Passo 2: enviar mensagem
+```bash
+curl -X POST https://api.qrapi.flipt.com.br/v1/messages \
+  -H "Authorization: Bearer sk_test_xxx" \
+  -H "Idempotency-Key: 3f8c1e9a-7b2d-4c6e-9a1f-2b3c4d5e6f70" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceId": "inst_123",
+    "to": "5511999998888",
+    "type": "text",
+    "text": "Seu pedido #1234 saiu para entrega."
+  }'
+```
+
+### Passo 3: registrar webhook
+```bash
+curl -X POST https://api.qrapi.flipt.com.br/v1/webhooks \
+  -H "Authorization: Bearer sk_test_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceId": "inst_123",
+    "url": "https://meusistema.com/webhooks/whatsapp",
+    "events": ["message.status", "message.received"]
+  }'
+```
+
+### Passo 4: receber e validar webhook (Node.js)
+```js
+import express from "express";
+import crypto from "crypto";
+
+const app = express();
+app.use(express.raw({ type: "application/json" }));
+
+app.post("/webhooks/whatsapp", (req, res) => {
+  const sig = req.headers["x-qr-signature"];
+  const ts = req.headers["x-qr-timestamp"];
+  const secret = process.env.QR_API_WEBHOOK_SECRET;
+
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(req.body)
+    .digest("hex");
+  const received = sig.replace("v1=", "");
+
+  if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received))) {
+    return res.status(401).json({ error: "assinatura invalida" });
+  }
+
+  const event = JSON.parse(req.body);
+  console.log("evento recebido:", event.event, event.data);
+
+  res.json({ ok: true }); // responde 200 rapido, processa async
+});
+
+app.listen(3000);
+```
+
+---
+
+## 19. Quickstart completo (SDK Node)
+
+```js
+import QrApi from "@flipt/qr-api";
+import crypto from "crypto";
+
+const client = new QrApi({ apiKey: process.env.QR_API_KEY });
+
+async function main() {
+  // 1. Criar instancia
+  const instance = await client.instances.create({
+    name: "Meu ERP",
+    inboundMode: "webhook",
+    webhook: {
+      url: "https://meusistema.com/webhooks/whatsapp",
+      events: ["message.status", "message.received"],
+    },
+  });
+  console.log("instancia criada:", instance.id, "status:", instance.status);
+  console.log("warmup ate:", instance.warmupUntil);
+
+  // 2. Pegar QR (chamada a cada 60s enquanto nao conectar)
+  const { qr } = await client.instances.getQr(instance.id);
+  console.log("escaneie o QR:", qr); // data:image/png;base64,...
+
+  // 3. Aguardar instance.connected no webhook e entao enviar
+  const msg = await client.messages.send({
+    instanceId: instance.id,
+    to: "5511999998888",
+    type: "image",
+    media: { url: "https://cdn.site.com/nf.jpg" },
+    caption: "Aqui esta sua nota fiscal.",
+    delayTyping: 2000,
+  });
+  console.log("mensagem enfileirada:", msg.id);
+
+  // 4. Verificar status
+  const status = await client.messages.get(msg.id);
+  console.log("status:", status.status); // queued | sent | delivered | read
+}
+
+main().catch(console.error);
+```
+
+---
+
+## 20. Referencia de todos os endpoints
+
+Base URL: https://api.qrapi.flipt.com.br/v1
+
+### Instancias
+| Metodo | Rota | Scope | Descricao |
+|--------|------|-------|-----------|
+| POST | /instances | instances:write | Cria instancia |
+| GET | /instances | instances:read | Lista (cursor) |
+| GET | /instances/{id} | instances:read | Detalhe e status e healthScore |
+| GET | /instances/{id}/qr | instances:read | QR para conectar |
+| POST | /instances/{id}/pair | instances:write | Pareamento por codigo |
+| PATCH | /instances/{id} | instances:write | Atualiza inboundMode, dailyLimit, webhook |
+| POST | /instances/{id}/restart | instances:write | Reinicia conexao |
+| POST | /instances/{id}/disconnect | instances:write | Desconecta numero |
+| DELETE | /instances/{id} | instances:write | Remove instancia |
+
+### Mensagens
+| Metodo | Rota | Scope | Descricao |
+|--------|------|-------|-----------|
+| POST | /messages | messages:send | Envia mensagem |
+| POST | /messages/bulk | messages:send | Lote com pacing |
+| GET | /messages/{id} | messages:read | Status |
+| GET | /messages | messages:read | Lista (cursor, filtros: instanceId, status, to) |
+| DELETE | /messages/{id} | messages:send | Cancela ou apaga para todos |
+| POST | /messages/{id}/read | messages:send | Marca como lida |
+
+### Numeros e contatos
+| Metodo | Rota | Scope | Descricao |
+|--------|------|-------|-----------|
+| GET | /phones/{number}/exists | phones:read | Verifica se tem WhatsApp |
+| POST | /phones/exists | phones:read | Verificacao em lote |
+| GET | /contacts/{number} | phones:read | Perfil e foto |
+| POST | /typing | messages:send | Presenca digitando |
+
+### Webhooks
+| Metodo | Rota | Scope | Descricao |
+|--------|------|-------|-----------|
+| POST | /webhooks | webhooks:write | Registra (retorna secret) |
+| GET | /webhooks | webhooks:write | Lista |
+| PATCH | /webhooks/{id} | webhooks:write | Atualiza url/events/active |
+| DELETE | /webhooks/{id} | webhooks:write | Remove |
+| GET | /webhooks/{id}/deliveries | webhooks:write | Painel de entregas |
+| POST | /webhooks/{id}/deliveries/{d}/retry | webhooks:write | Reenvio manual |
+
+### Chaves de API
+| Metodo | Rota | Scope | Descricao |
+|--------|------|-------|-----------|
+| POST | /keys | * | Cria API key |
+| GET | /keys | * | Lista |
+| DELETE | /keys/{id} | * | Revoga |
+
+### Meta
+| Metodo | Rota | Auth | Descricao |
+|--------|------|------|-----------|
+| GET | /me | Bearer | Info da chave autenticada |
+| GET | /health | nenhuma | Status do servico |

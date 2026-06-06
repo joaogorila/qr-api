@@ -1,0 +1,15 @@
+{
+  "name": "qr-api-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "QR-API — WhatsApp API nao-oficial (QR/Web via Evolution) — monorepo",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "dev:api": "pnpm --filter @flipt/qr-api-standalone dev"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
