@@ -8,8 +8,7 @@ const prisma = new PrismaClient({
 })
 
 if (process.env.NODE_ENV === 'development') {
-  // @ts-expect-error prisma.$on tipagem depende de log config acima
-  prisma.$on('query', (e: any) => {
+  prisma.$on('query' as never, (e: any) => {
     logger.debug({ query: e.query, duration: e.duration }, '[prisma]')
   })
 }

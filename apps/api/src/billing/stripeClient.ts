@@ -39,7 +39,7 @@ async function stripeFetch(method: string, path: string, body?: Record<string, a
     },
     ...(body ? { body: toForm(body).join('&') } : {}),
   })
-  const json = await res.json().catch(() => ({}))
+  const json: any = await res.json().catch(() => ({}))
   if (!res.ok) {
     logger.error({ status: res.status, path, error: json?.error }, '[stripe] erro')
     throw new Error(json?.error?.message ?? `Stripe ${path} -> ${res.status}`)

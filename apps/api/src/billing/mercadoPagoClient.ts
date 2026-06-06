@@ -16,7 +16,7 @@ async function mpFetch(method: string, path: string, body?: Record<string, any>)
     headers: { Authorization: `Bearer ${MP_TOKEN}`, 'Content-Type': 'application/json' },
     ...(body ? { body: JSON.stringify(body) } : {}),
   })
-  const json = await res.json().catch(() => ({}))
+  const json: any = await res.json().catch(() => ({}))
   if (!res.ok) {
     logger.error({ status: res.status, path, error: json }, '[mercadopago] erro')
     throw new Error(json?.message ?? `Mercado Pago ${path} -> ${res.status}`)

@@ -20,7 +20,7 @@ export interface JwtPayload {
 export function signJwt(payload: Omit<JwtPayload, 'iat' | 'exp'>, ttlSec = DEFAULT_TTL_SEC): string {
   const header = { alg: 'HS256', typ: 'JWT' }
   const now = Math.floor(Date.now() / 1000)
-  const full: JwtPayload = { ...payload, iat: now, exp: now + ttlSec }
+  const full = { ...payload, iat: now, exp: now + ttlSec } as JwtPayload
   const head = b64url(JSON.stringify(header))
   const body = b64url(JSON.stringify(full))
   const sig = createHmac('sha256', SECRET).update(`${head}.${body}`).digest('base64url')
