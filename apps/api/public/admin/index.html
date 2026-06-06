@@ -4,159 +4,1264 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QR-API, Console de Operador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    // ─── Config Tailwind inline (tokens da marca) ─────────────────────────────
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            // Sidebar escura
+            ink: {
+              900: '#071625',
+              800: '#0B1F30',
+              700: '#0F2A40',
+              600: '#163651',
+            },
+            // Marca QR-API
+            brand: {
+              50:  '#E6F9EE',
+              100: '#C4F1D4',
+              500: '#19C85A',
+              600: '#00B84A',
+              700: '#008A36',
+              800: '#066E2D',
+            },
+            // Surface / texto
+            surface: {
+              base: '#F7F9FB',
+              card: '#FFFFFF',
+              line: '#E5EAF0',
+              soft: '#F1F5F9',
+            },
+            txt: {
+              primary:   '#111827',
+              secondary: '#6B7280',
+              muted:     '#94A3B8',
+              sidebar:   '#D8E4EF',
+              sidebarMute: '#7F94AB',
+            },
+          },
+          boxShadow: {
+            card: '0 8px 24px rgba(15,23,42,0.04)',
+            cardLg: '0 12px 32px rgba(15,23,42,0.08)',
+            drawer: '-12px 0 32px rgba(15,23,42,0.12)',
+          },
+          borderRadius: { xl2: '14px' },
+        }
+      }
+    };
+  </script>
   <style>
-    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    .card { background:#14161c; border:1px solid #232733; border-radius:14px; }
-    .btn { border-radius:10px; font-weight:600; transition:.15s; }
-    .btn-primary { background:#2563eb; color:#fff; } .btn-primary:hover { background:#1d4ed8; }
-    .btn-ghost { background:#1b1f29; color:#cbd5e1; border:1px solid #2a2f3c; } .btn-ghost:hover { background:#222735; }
-    .btn-danger { background:#7f1d1d; color:#fecaca; } .btn-danger:hover { background:#991b1b; }
-    input,select { background:#0f1116; border:1px solid #2a2f3c; border-radius:10px; color:#e5e7eb; }
-    input:focus { outline:none; border-color:#2563eb; }
-    th { text-align:left; color:#94a3b8; font-weight:600; font-size:12px; padding:8px 12px; }
-    td { padding:10px 12px; border-top:1px solid #1d212b; font-size:14px; }
-    tr:hover td { background:#11141a; cursor:pointer; }
-    .badge { border-radius:999px; font-size:11px; font-weight:600; padding:2px 10px; }
+    /* ─── Base ─── */
+    html, body { font-family: 'Inter', system-ui, sans-serif; }
+    body { background: #F7F9FB; color: #111827; -webkit-font-smoothing: antialiased; }
+    .num { font-variant-numeric: tabular-nums; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+    /* ─── Sidebar item ─── */
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; margin: 1px 10px;
+      border-radius: 10px;
+      color: #B8CADD;
+      font-size: 13.5px; font-weight: 500;
+      border-left: 3px solid transparent;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.04); color: #fff; }
+    .nav-item.active {
+      background: rgba(0, 200, 83, 0.18);
+      color: #19C85A;
+      border-left-color: #00C853;
+      font-weight: 600;
+    }
+    .nav-item .lucide { width: 17px; height: 17px; stroke-width: 1.9; }
+    .nav-section {
+      padding: 16px 22px 8px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #5B7088;
+      font-weight: 600;
+    }
+
+    /* ─── Cards ─── */
+    .card {
+      background: #fff;
+      border: 1px solid #E5EAF0;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(15,23,42,0.04);
+    }
+    .card-flat { background: #fff; border: 1px solid #E5EAF0; border-radius: 12px; }
+
+    /* ─── Badges ─── */
+    .badge { display:inline-flex; align-items:center; gap:6px; border-radius: 999px; font-size: 11.5px; font-weight: 600; padding: 3px 10px; line-height: 1.2; white-space: nowrap; }
+    .badge-success { background: #DCFCE7; color: #15803D; }
+    .badge-warning { background: #FEF3C7; color: #B45309; }
+    .badge-danger  { background: #FEE2E2; color: #B91C1C; }
+    .badge-info    { background: #DBEAFE; color: #1D4ED8; }
+    .badge-muted   { background: #F1F5F9; color: #64748B; }
+    .badge-brand   { background: #E6F9EE; color: #066E2D; }
+    .badge-dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+
+    /* ─── Botões ─── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      border-radius: 10px; font-weight: 600; font-size: 13.5px;
+      padding: 9px 16px;
+      transition: background .15s, color .15s, transform .05s, border-color .15s;
+      cursor: pointer;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: #00B84A; color: #fff; }
+    .btn-primary:hover { background: #008A36; }
+    .btn-ghost { background: #fff; color: #111827; border: 1px solid #E5EAF0; }
+    .btn-ghost:hover { background: #F7F9FB; }
+    .btn-soft { background: #F1F5F9; color: #111827; }
+    .btn-soft:hover { background: #E5EAF0; }
+    .btn-danger { background: #EF4444; color: #fff; }
+    .btn-danger:hover { background: #B91C1C; }
+    .btn-link { color: #00B84A; font-weight: 600; }
+    .btn-link:hover { color: #008A36; }
+    .btn .lucide { width: 16px; height: 16px; stroke-width: 2; }
+
+    /* ─── Inputs ─── */
+    .input {
+      background: #fff;
+      border: 1px solid #E5EAF0;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13.5px;
+      color: #111827;
+      width: 100%;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input:focus { outline: none; border-color: #00B84A; box-shadow: 0 0 0 3px rgba(0,184,74,0.12); }
+    .input::placeholder { color: #94A3B8; }
+    .input-icon { position: relative; }
+    .input-icon .lucide { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #94A3B8; }
+    .input-icon .input { padding-left: 36px; }
+
+    /* ─── Tabela ─── */
+    .tbl { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .tbl thead th {
+      text-align: left;
+      font-size: 11.5px; font-weight: 600;
+      color: #6B7280; text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 12px 18px;
+      background: #FAFBFC;
+      border-bottom: 1px solid #E5EAF0;
+    }
+    .tbl tbody td { padding: 14px 18px; font-size: 13.5px; border-bottom: 1px solid #F1F5F9; color: #111827; }
+    .tbl tbody tr:last-child td { border-bottom: none; }
+    .tbl tbody tr.clickable { cursor: pointer; transition: background .12s; }
+    .tbl tbody tr.clickable:hover { background: #F7FAFC; }
+
+    /* ─── KPI tile ─── */
+    .kpi-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+
+    /* ─── Spark ─── */
+    .spark { width: 100%; height: 36px; }
+
+    /* ─── Modal / Drawer ─── */
+    .overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 50; backdrop-filter: blur(2px); }
+    .modal-card { background: #fff; border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,0.25); max-height: 92vh; overflow-y: auto; }
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 540px; max-width: 100vw;
+      background: #fff;
+      box-shadow: -12px 0 32px rgba(15,23,42,0.12);
+      z-index: 60;
+      transform: translateX(100%);
+      transition: transform .22s cubic-bezier(.22,.61,.36,1);
+      display: flex; flex-direction: column;
+    }
+    .drawer.open { transform: translateX(0); }
+
+    /* ─── Toast ─── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #111827; color: #fff;
+      padding: 12px 16px; border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; font-weight: 500;
+      z-index: 80;
+      animation: slideUp .22s ease-out;
+    }
+    @keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    /* ─── Skeleton ─── */
+    .skel { background: #E5EAF0; border-radius: 8px; animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+    /* ─── Health bar ─── */
+    .hb { height: 6px; background: #F1F5F9; border-radius: 999px; overflow: hidden; min-width: 70px; }
+    .hb > span { display: block; height: 100%; border-radius: 999px; }
+
+    /* ─── Tabs (drawer) ─── */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid #E5EAF0; padding: 0 4px; }
+    .tab { padding: 10px 14px; font-size: 13px; font-weight: 600; color: #6B7280; border-bottom: 2px solid transparent; cursor: pointer; }
+    .tab.active { color: #00B84A; border-bottom-color: #00B84A; }
   </style>
 </head>
-<body class="bg-[#0b0c10] text-slate-200 min-h-screen">
-  <div id="app" class="max-w-6xl mx-auto px-4 py-8"></div>
+<body>
+<div id="root"></div>
+
 <script>
+/* ════════════════════════════════════════════════════════════════════════════
+ *  QR-API · Console de Operador
+ *  SPA single-file, vanilla JS + Tailwind CDN + Lucide
+ * ════════════════════════════════════════════════════════════════════════════ */
+
 const API = '/admin/api';
 let token = localStorage.getItem('qrapi_admin_token') || null;
+let session = { email: null, name: null }; // preenchido após login
 
+// ─── Helpers gerais ─────────────────────────────────────────────────────────
 function h(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
-function money(n){ return 'R$ ' + Number(n||0).toLocaleString('pt-BR'); }
-function fmtDate(d){ return d? new Date(d).toLocaleDateString('pt-BR') : '-'; }
-async function api(path, opts={}) {
-  const res = await fetch(API+path, { method:opts.method||'GET',
-    headers:{ 'Content-Type':'application/json', ...(token?{Authorization:'Bearer '+token}:{}) },
-    ...(opts.body?{body:JSON.stringify(opts.body)}:{}) });
+function $(sel, root=document){ return root.querySelector(sel); }
+function $$(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
+function money(n){ return 'R$ ' + Number(n||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function num(n){ return Number(n||0).toLocaleString('pt-BR'); }
+function fmtDate(d){ return d ? new Date(d).toLocaleDateString('pt-BR') : '-'; }
+function fmtDateTime(d){ return d ? new Date(d).toLocaleString('pt-BR') : '-'; }
+function shortId(id){ return (id||'').slice(0,8); }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ─── HTTP ────────────────────────────────────────────────────────────────────
+async function api(path, opts={}){
+  const res = await fetch(API + path, {
+    method: opts.method || 'GET',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    ...(opts.body ? { body: JSON.stringify(opts.body) } : {}),
+  });
   const data = await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(data?.error?.message || 'Erro');
+  if(!res.ok) throw new Error(data?.error?.message || ('HTTP ' + res.status));
   return data;
 }
-
-function statusColor(s){ return ({CONNECTED:'bg-green-900 text-green-300',QR_PENDING:'bg-amber-900 text-amber-300',PROVISIONING:'bg-slate-700 text-slate-300',DISCONNECTED:'bg-red-900 text-red-300',BANNED:'bg-red-950 text-red-400',DEGRADED:'bg-orange-900 text-orange-300',ACTIVE:'bg-green-900 text-green-300',TRIALING:'bg-blue-900 text-blue-300',PAST_DUE:'bg-amber-900 text-amber-300',CANCELED:'bg-red-900 text-red-300'})[s]||'bg-slate-700 text-slate-300'; }
-
-// ─── Login ────────────────────────────────────────────────────────────────────
-function renderLogin(err){
-  const app=document.getElementById('app'); app.innerHTML='';
-  app.appendChild(h(`<div class="max-w-sm mx-auto mt-24">
-    <div class="text-center mb-6"><div class="text-2xl font-bold">QR-API . Operador</div><div class="text-slate-400 text-sm">Console interno</div></div>
-    <div class="card p-6 space-y-3">
-      <input id="email" type="email" class="w-full px-3 py-2.5" placeholder="Email de operador" />
-      <input id="pass" type="password" class="w-full px-3 py-2.5" placeholder="Senha" />
-      <button id="go" class="btn btn-primary w-full py-2.5">Entrar</button>
-      <div class="text-red-400 text-sm">${err||''}</div>
-    </div></div>`));
-  document.getElementById('go').onclick=async()=>{
-    try{
-      const r= await fetch('/portal/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value,password:document.getElementById('pass').value})});
-      const d= await r.json(); if(!r.ok) throw new Error(d?.error?.message||'Falha no login');
-      token=d.token; localStorage.setItem('qrapi_admin_token',token);
-      await loadDashboard();
-    }catch(e){ renderLogin(e.message); }
-  };
+async function fetchStatus(){
+  try { const r = await fetch('/status'); return await r.json(); }
+  catch { return null; }
 }
-function logout(){ token=null; localStorage.removeItem('qrapi_admin_token'); renderLogin(); }
 
-// ─── Dashboard ─────────────────────────────────────────────────────────────────
-async function loadDashboard(){
-  try{
-    const [ov, accs] = await Promise.all([ api('/overview'), api('/accounts') ]);
-    renderDashboard(ov, accs.data);
-  }catch(e){
-    if(String(e.message).includes('operador')||String(e.message).includes('restrito')) renderLogin('Este usuario nao e operador.');
-    else logout();
+// ─── Mapa de status → badge ─────────────────────────────────────────────────
+const STATUS_MAP = {
+  CONNECTED:    { cls: 'badge-success', label: 'Conectado' },
+  QR_PENDING:   { cls: 'badge-warning', label: 'QR pendente' },
+  PROVISIONING: { cls: 'badge-muted',   label: 'Provisionando' },
+  DISCONNECTED: { cls: 'badge-danger',  label: 'Desconectado' },
+  BANNED:       { cls: 'badge-danger',  label: 'Banido' },
+  DEGRADED:     { cls: 'badge-warning', label: 'Degradado' },
+  ACTIVE:       { cls: 'badge-success', label: 'Ativa' },
+  TRIALING:     { cls: 'badge-info',    label: 'Trial' },
+  PAST_DUE:     { cls: 'badge-warning', label: 'Vencida' },
+  CANCELED:     { cls: 'badge-danger',  label: 'Cancelada' },
+};
+function statusBadge(s){
+  const m = STATUS_MAP[s] || { cls: 'badge-muted', label: s || '—' };
+  return `<span class="badge ${m.cls}"><span class="badge-dot"></span>${m.label}</span>`;
+}
+function planBadge(p){
+  if(!p) return `<span class="badge badge-muted">Trial</span>`;
+  return `<span class="badge badge-brand">${escapeHtml(p.toUpperCase())}</span>`;
+}
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
+function toast(msg, kind='success'){
+  const icon = kind === 'error' ? 'alert-circle' : 'check-circle';
+  const color = kind === 'error' ? '#EF4444' : '#19C85A';
+  const t = h(`<div class="toast"><i data-lucide="${icon}" style="color:${color};width:18px;height:18px;"></i><span>${escapeHtml(msg)}</span></div>`);
+  document.body.appendChild(t);
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+  setTimeout(()=>t.remove(), 3000);
+}
+
+// ─── Logo (grid de QR pixels) ───────────────────────────────────────────────
+function logoSvg(size=26){
+  // 5×5 grid, formato estilo QR (sem padrão real). Verde brand.
+  const cells = [
+    [1,1,1,0,1],
+    [1,0,1,0,1],
+    [1,1,1,1,1],
+    [0,0,1,0,1],
+    [1,1,1,1,0],
+  ];
+  let rects = '';
+  const cell = size / 5;
+  const gap = 0.6;
+  for (let r=0;r<5;r++) for (let c=0;c<5;c++) if (cells[r][c]) {
+    rects += `<rect x="${c*cell+gap/2}" y="${r*cell+gap/2}" width="${cell-gap}" height="${cell-gap}" rx="${(cell-gap)/4}" fill="#19C85A"/>`;
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${rects}</svg>`;
+}
+
+// ─── Sparkline (ilustrativo) ────────────────────────────────────────────────
+function sparkline(seed=1, color='#00B84A'){
+  // gera 12 pontos pseudo-aleatórios estáveis
+  const pts = [];
+  let x = 0;
+  for (let i=0;i<12;i++){
+    const y = 18 + Math.sin((i + seed) * 0.7) * 8 + ((i*seed*17) % 7);
+    pts.push([i * 10, Math.max(4, Math.min(32, y))]);
+  }
+  const d = pts.map((p,i)=> (i===0?'M':'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const area = d + ` L ${pts[pts.length-1][0]} 36 L 0 36 Z`;
+  const gid = 'g' + Math.floor(Math.random()*1e6);
+  return `<svg class="spark" viewBox="0 0 110 36" preserveAspectRatio="none">
+    <defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#${gid})"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  ROTEAMENTO HASH
+ * ════════════════════════════════════════════════════════════════════════════ */
+const ROUTES = {
+  '#/overview':   { title: 'Visão geral',  icon: 'layout-dashboard', render: renderOverview },
+  '#/customers':  { title: 'Clientes',     icon: 'users',            render: renderCustomers },
+  '#/instances':  { title: 'Instâncias',   icon: 'server',           render: renderInstances },
+  '#/health':     { title: 'Saúde',        icon: 'activity',         render: renderHealth },
+  '#/suspended':  { title: 'Suspensões',   icon: 'ban',              render: renderSuspended },
+  '#/coming-soon/financial':   { title: 'Financeiro',    icon: 'dollar-sign', render: () => renderComingSoon('Financeiro','dollar-sign','Em breve: cohorts, churn, LTV e gráficos detalhados de receita.') },
+  '#/coming-soon/logs':        { title: 'Logs',          icon: 'terminal',    render: () => renderComingSoon('Logs','terminal','Em breve: auditoria, eventos de webhook e timeline de operações.') },
+  '#/coming-soon/system':      { title: 'Sistema',       icon: 'cpu',         render: () => renderComingSoon('Sistema','cpu','Em breve: filas, workers, CPU/RAM/Disco e health checks por serviço.') },
+  '#/coming-soon/settings':    { title: 'Configurações', icon: 'settings',    render: () => renderComingSoon('Configurações','settings','Em breve: gestão de operadores, ADMIN_EMAILS, billing e branding.') },
+};
+
+function currentRoute(){
+  const hash = location.hash || '#/overview';
+  return ROUTES[hash] ? hash : '#/overview';
+}
+window.addEventListener('hashchange', () => {
+  if (!token) return;
+  renderShell();
+});
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  TELA: LOGIN
+ * ════════════════════════════════════════════════════════════════════════════ */
+function renderLogin(err){
+  const root = document.getElementById('root');
+  root.innerHTML = '';
+  root.appendChild(h(`
+    <div class="min-h-screen flex items-center justify-center px-4" style="background: linear-gradient(180deg, #F7F9FB 0%, #EEF2F6 100%);">
+      <div class="w-full max-w-[420px]">
+        <div class="flex flex-col items-center mb-8">
+          <div class="flex items-center gap-3">${logoSvg(32)}<div class="text-2xl font-bold text-txt-primary">QR-API</div></div>
+          <div class="mt-2 text-xs font-semibold tracking-widest text-brand-700 uppercase">Operator</div>
+        </div>
+        <div class="card p-7">
+          <h1 class="text-xl font-bold text-txt-primary">Console de Operador</h1>
+          <p class="text-sm text-txt-secondary mt-1">Acesso restrito a operadores autorizados.</p>
+          <div class="mt-6 space-y-3">
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary">Email</label>
+              <div class="input-icon mt-1.5"><i data-lucide="mail"></i><input id="email" type="email" class="input" placeholder="voce@empresa.com" autocomplete="email" /></div>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary">Senha</label>
+              <div class="input-icon mt-1.5"><i data-lucide="lock"></i><input id="pass" type="password" class="input" placeholder="••••••••" autocomplete="current-password" /></div>
+            </div>
+            <button id="go" class="btn btn-primary w-full mt-2" style="padding: 11px 16px;">
+              <span id="go-label">Entrar</span>
+              <i data-lucide="arrow-right" id="go-arrow"></i>
+            </button>
+            ${err ? `<div class="text-sm text-red-600 flex items-center gap-2 mt-2"><i data-lucide="alert-circle" style="width:16px;height:16px"></i>${escapeHtml(err)}</div>` : ''}
+          </div>
+        </div>
+        <p class="text-center text-xs text-txt-muted mt-6">QR-API © ${new Date().getFullYear()} · Console interno</p>
+      </div>
+    </div>
+  `));
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+
+  const submit = async () => {
+    const email = $('#email').value.trim();
+    const pass = $('#pass').value;
+    if(!email || !pass){ renderLogin('Preencha email e senha.'); return; }
+    const btn = $('#go'); btn.disabled = true;
+    $('#go-label').textContent = 'Entrando...';
+    try {
+      const r = await fetch('/portal/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass }),
+      });
+      const d = await r.json();
+      if(!r.ok) throw new Error(d?.error?.message || 'Falha no login.');
+      token = d.token;
+      session.email = email;
+      session.name = d.user?.name || email.split('@')[0];
+      localStorage.setItem('qrapi_admin_token', token);
+      localStorage.setItem('qrapi_admin_email', email);
+      // valida que é operador chamando /overview
+      try { await api('/overview'); }
+      catch (e) {
+        token = null;
+        localStorage.removeItem('qrapi_admin_token');
+        throw new Error('Este usuário não é operador.');
+      }
+      renderShell();
+    } catch(e) {
+      renderLogin(e.message);
+    }
+  };
+  $('#go').onclick = submit;
+  [$('#email'), $('#pass')].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
+  $('#email').focus();
+}
+
+function logout(){
+  token = null;
+  localStorage.removeItem('qrapi_admin_token');
+  localStorage.removeItem('qrapi_admin_email');
+  location.hash = '';
+  renderLogin();
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  SHELL (sidebar + topbar + área principal)
+ * ════════════════════════════════════════════════════════════════════════════ */
+async function renderShell(){
+  const route = currentRoute();
+  const cfg = ROUTES[route];
+  const email = localStorage.getItem('qrapi_admin_email') || session.email || 'operador@qr-api';
+  const name = (email.split('@')[0] || 'Operador').replace(/\./g,' ');
+  session.email = email; session.name = name;
+
+  const root = document.getElementById('root');
+  root.innerHTML = '';
+  root.appendChild(h(`
+    <div class="flex min-h-screen">
+      <!-- ╔══ Sidebar ══╗ -->
+      <aside class="bg-ink-900 text-txt-sidebar w-[260px] shrink-0 flex flex-col" style="position: sticky; top: 0; height: 100vh;">
+        <div class="px-6 pt-6 pb-5">
+          <div class="flex items-center gap-2.5">
+            ${logoSvg(26)}
+            <div>
+              <div class="text-white font-bold text-[16px] leading-tight">QR-API</div>
+              <div class="text-[10.5px] font-semibold tracking-[0.16em] uppercase text-brand-500 leading-tight mt-0.5">Operator</div>
+            </div>
+          </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto pb-4">
+          <div class="nav-section">Operações</div>
+          ${navItem('#/overview',  'layout-dashboard', 'Visão geral', route)}
+          ${navItem('#/customers', 'users',            'Clientes',    route)}
+          ${navItem('#/instances', 'server',           'Instâncias',  route)}
+          ${navItem('#/health',    'activity',         'Saúde',       route)}
+
+          <div class="nav-section">Negócio</div>
+          ${navItem('#/coming-soon/financial', 'dollar-sign', 'Financeiro', route, true)}
+          ${navItem('#/suspended',             'ban',         'Suspensões', route)}
+
+          <div class="nav-section">Plataforma</div>
+          ${navItem('#/coming-soon/logs',      'terminal', 'Logs',          route, true)}
+          ${navItem('#/coming-soon/system',    'cpu',      'Sistema',       route, true)}
+          ${navItem('#/coming-soon/settings',  'settings', 'Configurações', route, true)}
+        </nav>
+
+        <!-- Rodapé sidebar -->
+        <div class="px-3 pb-4 space-y-2">
+          <div class="rounded-xl p-3" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);">
+            <div class="text-[10.5px] uppercase tracking-wider text-txt-sidebarMute font-semibold">Você está como</div>
+            <div class="text-white text-sm font-semibold capitalize mt-1 truncate">${escapeHtml(name)}</div>
+            <div class="text-[11.5px] text-txt-sidebarMute truncate">${escapeHtml(email)}</div>
+            <div class="mt-2"><span class="badge badge-brand">Operator</span></div>
+          </div>
+          <div id="engine-card" class="rounded-xl p-3 flex items-center justify-between" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);">
+            <div>
+              <div class="text-[10.5px] uppercase tracking-wider text-txt-sidebarMute font-semibold">Status engine</div>
+              <div id="engine-text" class="text-sm font-semibold text-white mt-0.5">Carregando…</div>
+            </div>
+            <div id="engine-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></div>
+          </div>
+          <button id="logout-btn" class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-txt-sidebar hover:bg-white/5 hover:text-white transition">
+            <i data-lucide="log-out" style="width:16px;height:16px"></i>
+            Sair
+          </button>
+        </div>
+      </aside>
+
+      <!-- ╔══ Main ══╗ -->
+      <main class="flex-1 min-w-0">
+        <!-- Topbar -->
+        <header class="bg-white border-b border-surface-line sticky top-0 z-30" style="height: 72px;">
+          <div class="h-full flex items-center justify-between px-8 gap-6">
+            <div class="flex items-center gap-3 min-w-0">
+              <i data-lucide="${cfg.icon}" style="width:20px;height:20px;color:#00B84A"></i>
+              <h1 class="text-[18px] font-bold text-txt-primary truncate">${cfg.title}</h1>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="input-icon hidden md:block" style="width: 320px;">
+                <i data-lucide="search"></i>
+                <input id="global-search" class="input" placeholder="Buscar clientes, instâncias..." />
+              </div>
+              <span class="badge badge-brand"><i data-lucide="shield-check" style="width:12px;height:12px;stroke-width:2.4"></i>Operator</span>
+              <div class="w-9 h-9 rounded-full bg-brand-50 text-brand-700 font-bold text-sm flex items-center justify-center border border-brand-100">
+                ${escapeHtml((name[0]||'O').toUpperCase())}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div id="page" class="px-8 py-8"></div>
+      </main>
+    </div>
+  `));
+
+  // Listeners de navegação
+  $$('.nav-item').forEach(el => {
+    el.addEventListener('click', () => { location.hash = el.dataset.route; });
+  });
+  $('#logout-btn').onclick = logout;
+  $('#global-search')?.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){
+      const q = e.target.value.trim();
+      if(q){ location.hash = '#/customers'; setTimeout(()=>{ const s=$('#cust-search'); if(s){ s.value=q; s.dispatchEvent(new Event('input')); } }, 100); }
+    }
+  });
+
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+
+  // Status engine no rodapé sidebar
+  fetchStatus().then(st => {
+    const dot = $('#engine-dot'); const txt = $('#engine-text');
+    if(!dot || !txt) return;
+    if (st && (st.status === 'ok' || st.engine === 'OPEN' || st.state === 'OPEN' || st.ok === true)) {
+      dot.className = 'w-2.5 h-2.5 rounded-full bg-brand-500'; txt.textContent = 'Operacional';
+    } else if (st) {
+      dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400'; txt.textContent = 'Degradado';
+    } else {
+      dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500'; txt.textContent = 'Sem resposta';
+    }
+  });
+
+  // Renderiza a página atual
+  try { await cfg.render(); }
+  catch (e) {
+    if (String(e.message||'').includes('403') || String(e.message||'').toLowerCase().includes('operador') || String(e.message||'').toLowerCase().includes('restrito')) {
+      renderLogin('Sessão expirada ou usuário não autorizado.');
+    } else {
+      $('#page').innerHTML = `<div class="card p-8 text-center"><div class="text-red-600 font-semibold">${escapeHtml(e.message)}</div></div>`;
+    }
   }
 }
 
-function renderDashboard(ov, accounts){
-  const app=document.getElementById('app'); app.innerHTML='';
-  app.appendChild(h(`<div class="flex items-center justify-between mb-8">
-    <div class="text-2xl font-bold">Console de Operador</div>
-    <button id="logout" class="btn btn-ghost px-4 py-2">Sair</button></div>`));
-  document.getElementById('logout').onclick=logout;
+function navItem(route, icon, label, active, comingSoon=false){
+  const isActive = active === route ? 'active' : '';
+  const soon = comingSoon ? `<span class="ml-auto badge badge-muted" style="font-size:10px;padding:1px 7px">EM BREVE</span>` : '';
+  return `<div class="nav-item ${isActive}" data-route="${route}">
+    <i data-lucide="${icon}"></i>
+    <span>${label}</span>
+    ${soon}
+  </div>`;
+}
 
-  const cards=[
-    ['MRR', money(ov.mrrBRL), 'ARR '+money(ov.arrBRL)],
-    ['Clientes', ov.accounts, ov.activeSubscriptions+' assinaturas ativas'],
-    ['Numeros', ov.instances.total, (ov.instances.byStatus.CONNECTED||0)+' conectados'],
-    ['Mensagens hoje', ov.messagesToday, (ov.messagesFailedToday||0)+' falhas'],
+/* ════════════════════════════════════════════════════════════════════════════
+ *  PÁGINA: VISÃO GERAL
+ * ════════════════════════════════════════════════════════════════════════════ */
+async function renderOverview(){
+  const page = $('#page');
+  page.innerHTML = skeletonOverview();
+  const [ov] = await Promise.all([ api('/overview') ]);
+
+  const avgTicket = ov.activeSubscriptions ? ov.mrrBRL / ov.activeSubscriptions : 0;
+  const kpis = [
+    { label: 'MRR',           value: money(ov.mrrBRL), sub: 'ARR ' + money(ov.arrBRL),                                   icon: 'trending-up', color: '#00B84A', seed: 3 },
+    { label: 'Clientes',      value: num(ov.accounts), sub: num(ov.activeSubscriptions) + ' assinaturas ativas',         icon: 'users',       color: '#3B82F6', seed: 5 },
+    { label: 'Números',       value: num(ov.instances.total), sub: num(ov.instances.byStatus?.CONNECTED || 0) + ' conectados', icon: 'server', color: '#8B5CF6', seed: 7 },
+    { label: 'Mensagens hoje', value: num(ov.messagesToday), sub: (ov.messagesFailedToday>0 ? `<span class="text-amber-600 font-semibold">${num(ov.messagesFailedToday)} falhas</span>` : 'sem falhas'), icon: 'send', color: '#F59E0B', seed: 11 },
   ];
-  const grid=h(`<div class="grid sm:grid-cols-4 gap-4 mb-8"></div>`);
-  cards.forEach(([t,v,s])=>grid.appendChild(h(`<div class="card p-5"><div class="text-slate-400 text-sm">${t}</div><div class="text-2xl font-bold mt-1">${v}</div><div class="text-slate-500 text-xs mt-2">${s}</div></div>`)));
-  app.appendChild(grid);
 
-  // saude das instancias
-  const bs=ov.instances.byStatus; const chips=Object.keys(bs).map(s=>`<span class="badge ${statusColor(s)}">${s}: ${bs[s]}</span>`).join(' ');
-  app.appendChild(h(`<div class="card p-4 mb-8"><div class="text-sm text-slate-400 mb-2">Saude das instancias (todos os clientes)</div><div class="flex flex-wrap gap-2">${chips||'<span class=text-slate-500>nenhuma</span>'}</div></div>`));
+  page.innerHTML = `
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+      ${kpis.map(k => `
+        <div class="card p-5">
+          <div class="flex items-start justify-between">
+            <div class="kpi-icon" style="background: ${k.color}1a; color: ${k.color};">
+              <i data-lucide="${k.icon}" style="width:18px;height:18px"></i>
+            </div>
+          </div>
+          <div class="text-[11px] uppercase tracking-wider text-txt-secondary font-semibold mt-4">${k.label}</div>
+          <div class="text-[28px] font-bold text-txt-primary num mt-1 leading-tight">${k.value}</div>
+          <div class="text-[12.5px] text-txt-secondary mt-1">${k.sub}</div>
+          <div class="mt-3 -mx-1">${sparkline(k.seed, k.color)}</div>
+        </div>
+      `).join('')}
+    </div>
 
-  // busca + tabela de clientes
-  const wrap=h(`<div>
-    <div class="flex items-center justify-between mb-3"><div class="text-lg font-semibold">Clientes</div>
-      <input id="search" class="px-3 py-2 w-64" placeholder="Buscar por nome ou email" /></div>
-    <div class="card overflow-hidden"><table class="w-full"><thead><tr>
-      <th>Conta</th><th>Plano</th><th>Status</th><th>Numeros</th><th>MRR</th><th>Criada</th></tr></thead>
-      <tbody id="rows"></tbody></table></div></div>`);
-  app.appendChild(wrap);
-  const renderRows=(list)=>{
-    const rows=wrap.querySelector('#rows'); rows.innerHTML='';
-    if(!list.length){ rows.appendChild(h(`<tr><td colspan="6" class="text-slate-500">Nenhum cliente.</td></tr>`)); return; }
-    list.forEach(a=>{
-      const tr=h(`<tr>
-        <td><div class="font-medium">${a.name} ${a.suspended?'<span class=\"badge bg-red-950 text-red-400 ml-1\">SUSPENSA</span>':''}</div><div class="text-slate-500 text-xs">${a.email||''}</div></td>
-        <td>${a.plan? a.plan.toUpperCase():'<span class=text-slate-500>trial</span>'}</td>
-        <td><span class="badge ${statusColor(a.subscriptionStatus)}">${a.subscriptionStatus}</span></td>
-        <td>${a.instances}</td><td>${money(a.mrr)}</td><td class="text-slate-400">${fmtDate(a.createdAt)}</td></tr>`);
-      tr.onclick=()=>openAccount(a.id);
-      rows.appendChild(tr);
+    <!-- Saúde das instâncias -->
+    <div class="card p-6 mb-8">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 class="text-base font-bold text-txt-primary">Saúde das instâncias</h2>
+          <p class="text-sm text-txt-secondary mt-0.5">Distribuição em tempo real, todos os clientes.</p>
+        </div>
+        <a class="btn-link text-sm flex items-center gap-1" href="#/health">Ver detalhe <i data-lucide="arrow-right" style="width:14px;height:14px"></i></a>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        ${renderStatusTiles(ov.instances.byStatus || {})}
+      </div>
+    </div>
+
+    <!-- Financeiro + Eventos -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-bold text-txt-primary">Visão financeira</h2>
+          <span class="badge badge-muted">Roadmap</span>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="rounded-xl border border-surface-line p-4 bg-surface-soft">
+            <div class="text-[11px] uppercase tracking-wider text-txt-secondary font-semibold">MRR</div>
+            <div class="text-xl font-bold num text-txt-primary mt-1">${money(ov.mrrBRL)}</div>
+          </div>
+          <div class="rounded-xl border border-surface-line p-4 bg-surface-soft">
+            <div class="text-[11px] uppercase tracking-wider text-txt-secondary font-semibold">ARR</div>
+            <div class="text-xl font-bold num text-txt-primary mt-1">${money(ov.arrBRL)}</div>
+          </div>
+          <div class="rounded-xl border border-surface-line p-4 bg-surface-soft">
+            <div class="text-[11px] uppercase tracking-wider text-txt-secondary font-semibold">Ticket médio</div>
+            <div class="text-xl font-bold num text-txt-primary mt-1">${money(avgTicket)}</div>
+          </div>
+        </div>
+        <div class="mt-5 p-4 rounded-xl border border-dashed border-surface-line text-sm text-txt-secondary flex items-start gap-3">
+          <i data-lucide="info" style="width:16px;height:16px;color:#3B82F6;flex-shrink:0;margin-top:2px"></i>
+          <div><strong class="text-txt-primary">Em breve:</strong> cohorts, churn mensal, LTV por plano e gráficos comparativos.</div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-bold text-txt-primary">Eventos do sistema</h2>
+          <span class="badge badge-muted">Em breve</span>
+        </div>
+        <div class="flex flex-col items-center justify-center py-10 text-center">
+          <div class="w-12 h-12 rounded-full bg-surface-soft flex items-center justify-center mb-3">
+            <i data-lucide="bell-off" style="width:20px;height:20px;color:#94A3B8"></i>
+          </div>
+          <div class="text-sm font-semibold text-txt-primary">Sem eventos recentes</div>
+          <div class="text-xs text-txt-secondary mt-1 max-w-xs">Quando habilitarmos o feed de eventos, alertas de saúde e billing aparecerão aqui.</div>
+        </div>
+      </div>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+}
+
+function renderStatusTiles(by){
+  const ALL = ['CONNECTED','QR_PENDING','DEGRADED','DISCONNECTED','BANNED','PROVISIONING'];
+  const COLORS = {
+    CONNECTED:    { bg:'#DCFCE7', fg:'#15803D', icon:'check-circle' },
+    QR_PENDING:   { bg:'#FEF3C7', fg:'#B45309', icon:'qr-code' },
+    DEGRADED:     { bg:'#FFEDD5', fg:'#C2410C', icon:'alert-triangle' },
+    DISCONNECTED: { bg:'#FEE2E2', fg:'#B91C1C', icon:'plug-zap' },
+    BANNED:       { bg:'#FECACA', fg:'#7F1D1D', icon:'ban' },
+    PROVISIONING: { bg:'#E2E8F0', fg:'#475569', icon:'loader' },
+  };
+  return ALL.map(s => {
+    const c = COLORS[s]; const n = by[s] || 0;
+    return `<div class="rounded-xl p-4 border" style="background:${c.bg}1a;border-color:${c.bg}80">
+      <div class="flex items-center gap-2 mb-2"><i data-lucide="${c.icon}" style="width:14px;height:14px;color:${c.fg}"></i><span class="text-[11px] uppercase tracking-wider font-bold" style="color:${c.fg}">${STATUS_MAP[s]?.label || s}</span></div>
+      <div class="text-2xl font-bold num text-txt-primary">${num(n)}</div>
+    </div>`;
+  }).join('');
+}
+
+function skeletonOverview(){
+  return `
+    <div class="grid grid-cols-4 gap-5 mb-8">
+      ${[1,2,3,4].map(()=>`<div class="card p-5"><div class="skel h-9 w-9 rounded-xl"></div><div class="skel h-3 w-20 mt-4"></div><div class="skel h-8 w-32 mt-3"></div><div class="skel h-3 w-40 mt-2"></div></div>`).join('')}
+    </div>
+    <div class="card p-6 mb-8"><div class="skel h-5 w-48 mb-4"></div><div class="grid grid-cols-6 gap-3">${[1,2,3,4,5,6].map(()=>`<div class="skel h-20 rounded-xl"></div>`).join('')}</div></div>
+  `;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  PÁGINA: CLIENTES
+ * ════════════════════════════════════════════════════════════════════════════ */
+async function renderCustomers(){
+  const page = $('#page');
+  page.innerHTML = `
+    <div class="flex items-start justify-between mb-6 flex-wrap gap-3">
+      <div>
+        <h2 class="text-[20px] font-bold text-txt-primary">Clientes</h2>
+        <p class="text-sm text-txt-secondary mt-1">Gerencie contas, assinaturas e suspensões.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="export-csv" class="btn btn-ghost"><i data-lucide="download"></i>Exportar CSV</button>
+      </div>
+    </div>
+
+    <div class="card p-4 mb-5">
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="input-icon flex-1 min-w-[240px]"><i data-lucide="search"></i><input id="cust-search" class="input" placeholder="Buscar por nome ou email..." /></div>
+        <select id="cust-status" class="input" style="width: 180px;">
+          <option value="">Todos os status</option>
+          <option value="ACTIVE">Ativa</option>
+          <option value="TRIALING">Trial</option>
+          <option value="PAST_DUE">Vencida</option>
+          <option value="CANCELED">Cancelada</option>
+        </select>
+        <label class="flex items-center gap-2 text-sm text-txt-secondary cursor-pointer select-none">
+          <input id="cust-only-susp" type="checkbox" class="w-4 h-4 accent-brand-600" /> Apenas suspensos
+        </label>
+      </div>
+    </div>
+
+    <div class="card overflow-hidden">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Conta</th><th>Plano</th><th>Status</th><th class="text-right">Números</th>
+            <th class="text-right">MRR</th><th>Criada</th><th style="width:48px"></th>
+          </tr>
+        </thead>
+        <tbody id="cust-rows"></tbody>
+      </table>
+      <div id="cust-empty" class="hidden p-12 text-center">
+        <div class="w-12 h-12 mx-auto rounded-full bg-surface-soft flex items-center justify-center mb-3"><i data-lucide="users" style="width:20px;height:20px;color:#94A3B8"></i></div>
+        <div class="font-semibold text-txt-primary">Nenhum cliente encontrado</div>
+        <div class="text-sm text-txt-secondary mt-1">Ajuste os filtros e tente novamente.</div>
+      </div>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+
+  let lastList = [];
+  const load = async () => {
+    const q = $('#cust-search').value.trim();
+    const r = await api('/accounts' + (q ? '?search=' + encodeURIComponent(q) : ''));
+    lastList = r.data || [];
+    applyFilters();
+  };
+  const applyFilters = () => {
+    const st = $('#cust-status').value;
+    const onlySusp = $('#cust-only-susp').checked;
+    let list = lastList;
+    if (st) list = list.filter(a => a.subscriptionStatus === st);
+    if (onlySusp) list = list.filter(a => a.suspended);
+    renderRows(list);
+  };
+  const renderRows = (list) => {
+    const tb = $('#cust-rows'); tb.innerHTML = '';
+    $('#cust-empty').classList.toggle('hidden', list.length > 0);
+    list.forEach(a => {
+      const tr = h(`<tr class="clickable">
+        <td>
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-brand-50 text-brand-700 font-bold text-sm flex items-center justify-center shrink-0">${escapeHtml((a.name||'?')[0].toUpperCase())}</div>
+            <div class="min-w-0">
+              <div class="font-semibold text-txt-primary flex items-center gap-2 truncate">${escapeHtml(a.name||'—')} ${a.suspended?'<span class="badge badge-danger">Suspensa</span>':''}</div>
+              <div class="text-xs text-txt-secondary truncate">${escapeHtml(a.email||'')}</div>
+            </div>
+          </div>
+        </td>
+        <td>${planBadge(a.plan)}</td>
+        <td>${statusBadge(a.subscriptionStatus)}</td>
+        <td class="text-right num font-semibold">${num(a.instances)}</td>
+        <td class="text-right num font-semibold">${money(a.mrr)}</td>
+        <td class="text-txt-secondary num">${fmtDate(a.createdAt)}</td>
+        <td><button class="text-txt-secondary hover:text-txt-primary p-1 rounded" title="Detalhes"><i data-lucide="chevron-right" style="width:16px;height:16px"></i></button></td>
+      </tr>`);
+      tr.onclick = () => openAccountDrawer(a.id);
+      tb.appendChild(tr);
+    });
+    if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+  };
+
+  // debounce search
+  let t;
+  $('#cust-search').addEventListener('input', () => { clearTimeout(t); t = setTimeout(load, 300); });
+  $('#cust-status').addEventListener('change', applyFilters);
+  $('#cust-only-susp').addEventListener('change', applyFilters);
+
+  $('#export-csv').onclick = () => exportCustomersCsv(lastList);
+
+  await load();
+}
+
+function exportCustomersCsv(list){
+  const headers = ['ID','Nome','Email','Plano','Status','Suspensa','Numeros','MRR','Criada'];
+  const rows = list.map(a => [a.id, a.name, a.email||'', a.plan||'', a.subscriptionStatus||'', a.suspended?'sim':'nao', a.instances, a.mrr, a.createdAt]
+    .map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `qrapi-clientes-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exportado com sucesso');
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  DRAWER: DETALHE DA CONTA
+ * ════════════════════════════════════════════════════════════════════════════ */
+async function openAccountDrawer(id){
+  // Overlay + drawer
+  const overlay = h(`<div class="overlay"></div>`);
+  const drawer = h(`<div class="drawer">
+    <div class="px-6 pt-5 pb-4 border-b border-surface-line flex items-start justify-between">
+      <div class="min-w-0">
+        <div class="text-[11px] uppercase tracking-wider text-txt-secondary font-semibold">Detalhe da conta</div>
+        <div id="dr-title" class="text-lg font-bold text-txt-primary mt-1 truncate">Carregando…</div>
+      </div>
+      <button id="dr-close" class="p-2 hover:bg-surface-soft rounded-lg"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div id="dr-body" class="flex-1 overflow-y-auto p-6"></div>
+    <div id="dr-footer" class="px-6 py-4 border-t border-surface-line bg-surface-soft"></div>
+  </div>`);
+  document.body.appendChild(overlay);
+  document.body.appendChild(drawer);
+  requestAnimationFrame(() => drawer.classList.add('open'));
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+
+  const close = () => {
+    drawer.classList.remove('open');
+    overlay.remove();
+    setTimeout(()=> drawer.remove(), 220);
+    document.removeEventListener('keydown', esc);
+  };
+  const esc = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', esc);
+  overlay.onclick = close;
+  $('#dr-close', drawer).onclick = close;
+
+  // Body skeleton
+  $('#dr-body', drawer).innerHTML = `<div class="space-y-3">
+    <div class="skel h-16 rounded-xl"></div><div class="skel h-32 rounded-xl"></div><div class="skel h-24 rounded-xl"></div>
+  </div>`;
+
+  let d;
+  try { d = await api('/accounts/' + id); }
+  catch (e) { $('#dr-body', drawer).innerHTML = `<div class="text-red-600 text-sm">${escapeHtml(e.message)}</div>`; return; }
+
+  const sub = d.subscription;
+  const user = d.users?.[0];
+  $('#dr-title', drawer).textContent = d.account.name || '—';
+
+  const susBadge = d.account.suspended ? '<span class="badge badge-danger">Suspensa</span>' : '';
+  $('#dr-body', drawer).innerHTML = `
+    <!-- Cabeçalho -->
+    <div class="flex items-start gap-4 mb-5">
+      <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-700 font-bold text-lg flex items-center justify-center shrink-0">${escapeHtml((d.account.name||'?')[0].toUpperCase())}</div>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2 flex-wrap">${planBadge(sub?.planId)} ${statusBadge(sub?.status || 'TRIALING')} ${susBadge}</div>
+        <div class="text-sm text-txt-secondary mt-2 truncate">${escapeHtml(user?.email || '—')}</div>
+        <div class="text-xs text-txt-muted mt-0.5">Conta desde ${fmtDate(d.account.createdAt)} · ID <span class="mono">${shortId(d.account.id)}</span></div>
+      </div>
+    </div>
+
+    <!-- KPIs compactos -->
+    <div class="grid grid-cols-3 gap-3 mb-6">
+      <div class="rounded-xl border border-surface-line p-3 bg-surface-soft">
+        <div class="text-[10.5px] uppercase tracking-wider text-txt-secondary font-semibold">MRR</div>
+        <div class="text-lg font-bold num text-txt-primary mt-0.5">${money(d.mrr)}</div>
+        <div class="text-[11px] text-txt-secondary">${num(sub?.quantity||0)} número(s)</div>
+      </div>
+      <div class="rounded-xl border border-surface-line p-3 bg-surface-soft">
+        <div class="text-[10.5px] uppercase tracking-wider text-txt-secondary font-semibold">Mensagens 30d</div>
+        <div class="text-lg font-bold num text-txt-primary mt-0.5">${num(d.usage30d.messagesSent)}</div>
+        <div class="text-[11px] text-txt-secondary">${num(d.usage30d.messagesFailed)} falhas</div>
+      </div>
+      <div class="rounded-xl border border-surface-line p-3 bg-surface-soft">
+        <div class="text-[10.5px] uppercase tracking-wider text-txt-secondary font-semibold">Instâncias</div>
+        <div class="text-lg font-bold num text-txt-primary mt-0.5">${num(d.instances.length)}</div>
+        <div class="text-[11px] text-txt-secondary">${num(d.keys.length)} chaves API</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs mb-4">
+      <div class="tab active" data-tab="inst">Instâncias</div>
+      <div class="tab" data-tab="keys">Chaves</div>
+      <div class="tab" data-tab="inv">Faturas</div>
+      <div class="tab" data-tab="usage">Uso 30d</div>
+    </div>
+
+    <div id="tab-inst" class="tab-pane">
+      ${d.instances.length ? `<div class="card-flat divide-y divide-surface-line">${d.instances.map(i => `
+        <div class="p-3 flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="font-semibold text-sm text-txt-primary truncate">${escapeHtml(i.name||'—')}</div>
+            <div class="text-xs text-txt-secondary mono truncate">${escapeHtml(i.phone||'sem número')} · ID ${shortId(i.id)}</div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <div class="text-right text-xs text-txt-secondary"><div>Saúde</div><div class="num font-semibold text-txt-primary">${i.healthScore ?? '—'}</div></div>
+            ${statusBadge(i.status)}
+          </div>
+        </div>
+      `).join('')}</div>` : emptyMini('Nenhuma instância', 'server')}
+    </div>
+
+    <div id="tab-keys" class="tab-pane hidden">
+      ${d.keys.length ? `<div class="card-flat divide-y divide-surface-line">${d.keys.map(k => `
+        <div class="p-3 flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="font-semibold text-sm text-txt-primary truncate">${escapeHtml(k.name||'—')}</div>
+            <div class="text-xs text-txt-secondary mono">${escapeHtml(k.keyPrefix||'')}…</div>
+          </div>
+          <span class="badge ${k.mode === 'LIVE' ? 'badge-success' : 'badge-muted'}">${escapeHtml(k.mode||'—')}</span>
+        </div>
+      `).join('')}</div>` : emptyMini('Nenhuma chave', 'key')}
+    </div>
+
+    <div id="tab-inv" class="tab-pane hidden">
+      ${d.invoices?.length ? `<div class="card-flat divide-y divide-surface-line">${d.invoices.map(inv => `
+        <div class="p-3 flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="font-semibold text-sm text-txt-primary truncate">${escapeHtml(inv.description || ('Fatura ' + (inv.number||shortId(inv.id))))}</div>
+            <div class="text-xs text-txt-secondary num">${fmtDate(inv.createdAt || inv.date)}</div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <div class="font-semibold num">${money(inv.amount || inv.total || 0)}</div>
+            ${statusBadge(inv.status)}
+          </div>
+        </div>
+      `).join('')}</div>` : emptyMini('Sem faturas registradas', 'file-text')}
+    </div>
+
+    <div id="tab-usage" class="tab-pane hidden">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-xl border border-surface-line p-4">
+          <div class="text-[11px] uppercase tracking-wider text-txt-secondary font-semibold">Enviadas</div>
+          <div class="text-2xl font-bold num text-txt-primary mt-1">${num(d.usage30d.messagesSent)}</div>
+        </div>
+        <div class="rounded-xl border border-surface-line p-4">
+          <div class="text-[11px] uppercase tracking-wider text-txt-secondary font-semibold">Falhas</div>
+          <div class="text-2xl font-bold num text-amber-600 mt-1">${num(d.usage30d.messagesFailed)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Tabs
+  $$('.tab', drawer).forEach(t => t.addEventListener('click', () => {
+    $$('.tab', drawer).forEach(x => x.classList.remove('active')); t.classList.add('active');
+    $$('.tab-pane', drawer).forEach(p => p.classList.add('hidden'));
+    $('#tab-' + t.dataset.tab, drawer).classList.remove('hidden');
+  }));
+
+  // Footer action
+  $('#dr-footer', drawer).innerHTML = d.account.suspended
+    ? `<button id="dr-action" class="btn btn-primary w-full"><i data-lucide="play-circle"></i>Reativar conta</button>`
+    : `<button id="dr-action" class="btn btn-danger w-full"><i data-lucide="ban"></i>Suspender conta</button>`;
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+
+  $('#dr-action', drawer).onclick = () => confirmSuspend(d, close);
+}
+
+function emptyMini(title, icon){
+  return `<div class="p-8 text-center"><div class="w-10 h-10 mx-auto rounded-full bg-surface-soft flex items-center justify-center mb-2"><i data-lucide="${icon}" style="width:16px;height:16px;color:#94A3B8"></i></div><div class="text-sm font-medium text-txt-primary">${title}</div></div>`;
+}
+
+function confirmSuspend(d, onSuccess){
+  const sus = !d.account.suspended;
+  const title = sus ? 'Suspender conta?' : 'Reativar conta?';
+  const desc = sus
+    ? 'A conta perderá acesso ao envio de mensagens e à criação de novos números. Esta ação pode ser desfeita.'
+    : 'A conta voltará a operar normalmente, com envio liberado.';
+  const confirmLabel = sus ? 'Suspender conta' : 'Reativar conta';
+
+  const overlay = h(`<div class="overlay" style="z-index:70"></div>`);
+  const modal = h(`<div class="fixed inset-0 z-[71] flex items-center justify-center px-4">
+    <div class="modal-card w-full max-w-md p-6">
+      <div class="flex items-start gap-4">
+        <div class="w-11 h-11 rounded-full flex items-center justify-center shrink-0" style="background:${sus?'#FEE2E2':'#DCFCE7'};color:${sus?'#B91C1C':'#15803D'}">
+          <i data-lucide="${sus?'alert-triangle':'check-circle'}" style="width:20px;height:20px"></i>
+        </div>
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-txt-primary">${title}</h3>
+          <p class="text-sm text-txt-secondary mt-1">${desc}</p>
+          <div class="mt-3 p-3 rounded-lg bg-surface-soft border border-surface-line text-sm">
+            <div class="font-semibold text-txt-primary">${escapeHtml(d.account.name)}</div>
+            <div class="text-xs text-txt-secondary truncate">${escapeHtml(d.users?.[0]?.email||'')}</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cf-cancel" class="btn btn-ghost">Cancelar</button>
+        <button id="cf-ok" class="btn ${sus?'btn-danger':'btn-primary'}">${confirmLabel}</button>
+      </div>
+    </div>
+  </div>`);
+  document.body.appendChild(overlay);
+  document.body.appendChild(modal);
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+
+  const closeMd = () => { overlay.remove(); modal.remove(); document.removeEventListener('keydown', esc); };
+  const esc = (e) => { if (e.key === 'Escape') closeMd(); };
+  document.addEventListener('keydown', esc);
+  overlay.onclick = closeMd;
+  $('#cf-cancel', modal).onclick = closeMd;
+  $('#cf-ok', modal).onclick = async () => {
+    try {
+      await api('/accounts/' + d.account.id + (sus ? '/suspend' : '/unsuspend'), { method: 'POST' });
+      toast(sus ? 'Conta suspensa' : 'Conta reativada');
+      closeMd();
+      if (onSuccess) onSuccess();
+      renderShell();
+    } catch (e) { toast(e.message, 'error'); }
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  PÁGINA: INSTÂNCIAS
+ * ════════════════════════════════════════════════════════════════════════════ */
+async function renderInstances(){
+  const page = $('#page');
+  page.innerHTML = `
+    <div class="flex items-start justify-between mb-6 flex-wrap gap-3">
+      <div>
+        <h2 class="text-[20px] font-bold text-txt-primary">Instâncias</h2>
+        <p class="text-sm text-txt-secondary mt-1">Todas as conexões, de todos os tenants.</p>
+      </div>
+      <button id="inst-refresh" class="btn btn-ghost"><i data-lucide="refresh-cw"></i>Atualizar</button>
+    </div>
+
+    <div class="card p-4 mb-5">
+      <div id="inst-chips" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <div class="card overflow-hidden">
+      <table class="tbl">
+        <thead><tr>
+          <th>ID</th><th>Tenant</th><th>Nome</th><th>Status</th><th>Telefone</th>
+          <th>Saúde</th><th class="text-right">Limite/dia</th><th>Criada</th>
+        </tr></thead>
+        <tbody id="inst-rows"></tbody>
+      </table>
+      <div id="inst-empty" class="hidden p-12 text-center">
+        <div class="w-12 h-12 mx-auto rounded-full bg-surface-soft flex items-center justify-center mb-3"><i data-lucide="server" style="width:20px;height:20px;color:#94A3B8"></i></div>
+        <div class="font-semibold text-txt-primary">Nenhuma instância</div>
+      </div>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+
+  let filter = '';
+  const CHIPS = ['', 'CONNECTED', 'QR_PENDING', 'DEGRADED', 'DISCONNECTED', 'BANNED', 'PROVISIONING'];
+  const renderChips = () => {
+    $('#inst-chips').innerHTML = CHIPS.map(s => {
+      const active = s === filter;
+      const label = s === '' ? 'Todos' : (STATUS_MAP[s]?.label || s);
+      return `<button data-status="${s}" class="badge ${active?'badge-brand':'badge-muted'}" style="cursor:pointer;padding:5px 12px;font-size:12px">${label}</button>`;
+    }).join('');
+    $$('#inst-chips [data-status]').forEach(el => el.onclick = () => { filter = el.dataset.status; renderChips(); load(); });
+  };
+
+  const load = async () => {
+    const r = await api('/instances' + (filter ? '?status=' + filter : ''));
+    const list = r.data || [];
+    const tb = $('#inst-rows'); tb.innerHTML = '';
+    $('#inst-empty').classList.toggle('hidden', list.length > 0);
+    list.forEach(i => {
+      const score = Number(i.healthScore || 0);
+      const color = score > 80 ? '#16A34A' : score > 50 ? '#F59E0B' : '#EF4444';
+      const tr = h(`<tr>
+        <td><span class="mono text-xs text-txt-secondary">${shortId(i.id)}</span></td>
+        <td><span class="mono text-xs text-txt-secondary" title="${escapeHtml(i.tenantId||'')}">${shortId(i.tenantId)}</span></td>
+        <td class="font-medium text-txt-primary">${escapeHtml(i.name||'—')}</td>
+        <td>${statusBadge(i.status)}</td>
+        <td class="mono text-xs">${escapeHtml(i.phone||'—')}</td>
+        <td><div class="flex items-center gap-2"><div class="hb"><span style="width:${Math.max(4,Math.min(100,score))}%;background:${color}"></span></div><span class="num text-xs font-semibold" style="color:${color}">${score}</span></div></td>
+        <td class="text-right num">${num(i.dailyLimit||0)}</td>
+        <td class="text-txt-secondary num text-xs">${fmtDate(i.createdAt)}</td>
+      </tr>`);
+      tb.appendChild(tr);
     });
   };
-  renderRows(accounts);
-  let t; wrap.querySelector('#search').oninput=(e)=>{ clearTimeout(t); t=setTimeout(async()=>{ const r=await api('/accounts?search='+encodeURIComponent(e.target.value)); renderRows(r.data); },300); };
+
+  $('#inst-refresh').onclick = load;
+  renderChips();
+  await load();
 }
 
-// ─── Detalhe da conta ───────────────────────────────────────────────────────────
-async function openAccount(id){
-  try{
-    const d= await api('/accounts/'+id);
-    const sub=d.subscription;
-    const modal=h(`<div class="fixed inset-0 bg-black/70 flex items-start justify-center z-50 overflow-y-auto py-10" id="m">
-      <div class="card p-6 w-full max-w-2xl">
-        <div class="flex items-start justify-between mb-4">
-          <div><div class="text-xl font-bold">${d.account.name} ${d.account.suspended?'<span class=\"badge bg-red-950 text-red-400 ml-1\">SUSPENSA</span>':''}</div>
-            <div class="text-slate-400 text-sm">${d.users[0]?.email||''} . desde ${fmtDate(d.account.createdAt)}</div></div>
-          <button onclick="document.getElementById('m').remove()" class="btn btn-ghost px-3 py-1.5">Fechar</button>
+/* ════════════════════════════════════════════════════════════════════════════
+ *  PÁGINA: SAÚDE
+ * ════════════════════════════════════════════════════════════════════════════ */
+async function renderHealth(){
+  const page = $('#page');
+  page.innerHTML = `<div class="space-y-6" id="health-shell"></div>`;
+  const shell = $('#health-shell');
+  shell.innerHTML = `<div class="grid grid-cols-6 gap-3">${[1,2,3,4,5,6].map(()=>`<div class="skel h-24 rounded-xl"></div>`).join('')}</div>`;
+
+  const [ov, ins, st] = await Promise.all([ api('/overview'), api('/instances'), fetchStatus() ]);
+  const list = (ins.data || []).slice().sort((a,b) => (a.healthScore||0) - (b.healthScore||0)).slice(0, 10);
+
+  const engineOk = !!(st && (st.status === 'ok' || st.engine === 'OPEN' || st.state === 'OPEN' || st.ok === true));
+  const engineLabel = !st ? 'Sem resposta' : engineOk ? 'Operacional' : 'Degradado';
+  const engineColor = !st ? '#EF4444' : engineOk ? '#16A34A' : '#F59E0B';
+
+  shell.innerHTML = `
+    <div>
+      <h2 class="text-[20px] font-bold text-txt-primary">Saúde da plataforma</h2>
+      <p class="text-sm text-txt-secondary mt-1">Distribuição agregada e instâncias com pior saúde.</p>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      ${renderStatusTiles(ov.instances.byStatus || {})}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="card p-6 lg:col-span-2">
+        <h3 class="text-base font-bold text-txt-primary mb-4">Top 10, pior saúde</h3>
+        ${list.length ? `<div class="space-y-2">${list.map(i => {
+          const score = Number(i.healthScore||0);
+          const color = score > 80 ? '#16A34A' : score > 50 ? '#F59E0B' : '#EF4444';
+          return `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border border-surface-line">
+            <div class="min-w-0">
+              <div class="font-semibold text-sm text-txt-primary truncate">${escapeHtml(i.name||'—')}</div>
+              <div class="text-xs text-txt-secondary mono truncate">${shortId(i.id)} · tenant ${shortId(i.tenantId)}</div>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              <div class="hb" style="width:120px"><span style="width:${Math.max(4,Math.min(100,score))}%;background:${color}"></span></div>
+              <div class="text-sm font-bold num" style="color:${color};min-width:32px;text-align:right">${score}</div>
+              ${statusBadge(i.status)}
+            </div>
+          </div>`;
+        }).join('')}</div>` : emptyMini('Nenhuma instância', 'server')}
+      </div>
+
+      <div class="card p-6">
+        <h3 class="text-base font-bold text-txt-primary mb-4">Engine status</h3>
+        <div class="rounded-xl p-5 border" style="border-color:${engineColor}40;background:${engineColor}0d">
+          <div class="flex items-center gap-3">
+            <div class="w-3 h-3 rounded-full" style="background:${engineColor};box-shadow:0 0 0 4px ${engineColor}33"></div>
+            <div class="text-lg font-bold" style="color:${engineColor}">${engineLabel}</div>
+          </div>
+          <div class="text-sm text-txt-secondary mt-3">Resposta do endpoint <span class="mono">/status</span>.</div>
         </div>
-        <div class="grid grid-cols-3 gap-3 mb-4">
-          <div class="card p-3"><div class="text-slate-400 text-xs">Plano</div><div class="font-bold">${sub?.planId?.toUpperCase()||'Trial'}</div><span class="badge ${statusColor(sub?.status||'TRIALING')}">${sub?.status||'TRIALING'}</span></div>
-          <div class="card p-3"><div class="text-slate-400 text-xs">MRR</div><div class="font-bold">${money(d.mrr)}</div><div class="text-slate-500 text-xs">${sub?.quantity||0} numero(s)</div></div>
-          <div class="card p-3"><div class="text-slate-400 text-xs">Msgs 30d</div><div class="font-bold">${d.usage30d.messagesSent}</div><div class="text-slate-500 text-xs">${d.usage30d.messagesFailed} falhas</div></div>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <div class="rounded-xl border border-surface-line p-3"><div class="text-[10.5px] uppercase tracking-wider text-txt-secondary font-semibold">Total</div><div class="text-lg font-bold num">${num(ov.instances.total)}</div></div>
+          <div class="rounded-xl border border-surface-line p-3"><div class="text-[10.5px] uppercase tracking-wider text-txt-secondary font-semibold">Conectados</div><div class="text-lg font-bold num text-brand-700">${num(ov.instances.byStatus?.CONNECTED||0)}</div></div>
         </div>
-        <div class="text-sm font-semibold mb-1">Numeros (${d.instances.length})</div>
-        <div class="card divide-y divide-[#232733] mb-4">${d.instances.map(i=>`<div class="p-3 flex justify-between text-sm"><div>${i.name} <span class="badge ${statusColor(i.status)} ml-1">${i.status}</span></div><div class="text-slate-500">${i.phone||'-'} . saude ${i.healthScore}</div></div>`).join('')||'<div class="p-3 text-slate-500 text-sm">nenhum</div>'}</div>
-        <div class="text-sm font-semibold mb-1">Chaves (${d.keys.length})</div>
-        <div class="card divide-y divide-[#232733] mb-4">${d.keys.map(k=>`<div class="p-3 flex justify-between text-sm"><div>${k.name} <span class="badge ${statusColor(k.mode)} ml-1">${k.mode}</span></div><div class="text-slate-500 font-mono">${k.keyPrefix}</div></div>`).join('')||'<div class="p-3 text-slate-500 text-sm">nenhuma</div>'}</div>
-        <div class="flex gap-2">
-          ${d.account.suspended
-            ? `<button id="act" class="btn btn-primary px-4 py-2">Reativar conta</button>`
-            : `<button id="act" class="btn btn-danger px-4 py-2">Suspender conta</button>`}
+      </div>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  PÁGINA: SUSPENSÕES
+ * ════════════════════════════════════════════════════════════════════════════ */
+async function renderSuspended(){
+  const page = $('#page');
+  page.innerHTML = `
+    <div class="flex items-start justify-between mb-6 flex-wrap gap-3">
+      <div>
+        <h2 class="text-[20px] font-bold text-txt-primary">Suspensões</h2>
+        <p class="text-sm text-txt-secondary mt-1">Contas atualmente bloqueadas pela operação.</p>
+      </div>
+    </div>
+    <div class="card overflow-hidden">
+      <table class="tbl">
+        <thead><tr>
+          <th>Conta</th><th>Plano</th><th>Status</th><th class="text-right">Números</th>
+          <th class="text-right">MRR</th><th>Criada</th><th style="width:120px"></th>
+        </tr></thead>
+        <tbody id="sus-rows"></tbody>
+      </table>
+      <div id="sus-empty" class="hidden p-12 text-center">
+        <div class="w-12 h-12 mx-auto rounded-full bg-brand-50 flex items-center justify-center mb-3"><i data-lucide="check-circle-2" style="width:22px;height:22px;color:#15803D"></i></div>
+        <div class="font-semibold text-txt-primary">Tudo certo, nenhuma conta suspensa</div>
+        <div class="text-sm text-txt-secondary mt-1">Quando você suspender uma conta, ela aparece aqui.</div>
+      </div>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+
+  const r = await api('/accounts');
+  const list = (r.data || []).filter(a => a.suspended);
+  const tb = $('#sus-rows'); tb.innerHTML = '';
+  $('#sus-empty').classList.toggle('hidden', list.length > 0);
+  list.forEach(a => {
+    const tr = h(`<tr class="clickable">
+      <td>
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-red-50 text-red-700 font-bold text-sm flex items-center justify-center shrink-0">${escapeHtml((a.name||'?')[0].toUpperCase())}</div>
+          <div class="min-w-0"><div class="font-semibold text-txt-primary truncate">${escapeHtml(a.name||'—')}</div><div class="text-xs text-txt-secondary truncate">${escapeHtml(a.email||'')}</div></div>
         </div>
-      </div></div>`);
-    document.body.appendChild(modal);
-    modal.querySelector('#act').onclick=async()=>{
-      const sus=!d.account.suspended;
-      if(!confirm(sus?'Suspender esta conta? Bloqueia envio e novos numeros.':'Reativar esta conta?')) return;
-      await api('/accounts/'+id+(sus?'/suspend':'/unsuspend'),{method:'POST'});
-      modal.remove(); loadDashboard();
+      </td>
+      <td>${planBadge(a.plan)}</td>
+      <td>${statusBadge(a.subscriptionStatus)}</td>
+      <td class="text-right num font-semibold">${num(a.instances)}</td>
+      <td class="text-right num font-semibold">${money(a.mrr)}</td>
+      <td class="text-txt-secondary num">${fmtDate(a.createdAt)}</td>
+      <td><button class="btn btn-primary" style="padding:6px 12px;font-size:12.5px" data-act="reactivate"><i data-lucide="play-circle"></i>Reativar</button></td>
+    </tr>`);
+    tr.onclick = (e) => {
+      if (e.target.closest('[data-act]')) {
+        e.stopPropagation();
+        confirmSuspend({ account: a, users: [{email:a.email}] }, () => renderShell());
+      } else {
+        openAccountDrawer(a.id);
+      }
     };
-  }catch(e){ alert(e.message); }
+    tb.appendChild(tr);
+  });
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
 }
 
-if(token) loadDashboard(); else renderLogin();
+/* ════════════════════════════════════════════════════════════════════════════
+ *  PÁGINA: EM BREVE (wrapper genérico)
+ * ════════════════════════════════════════════════════════════════════════════ */
+function renderComingSoon(title, icon, desc){
+  $('#page').innerHTML = `
+    <div class="flex items-center justify-center" style="min-height: 60vh">
+      <div class="text-center max-w-md">
+        <div class="w-20 h-20 rounded-full bg-brand-50 flex items-center justify-center mx-auto mb-6">
+          <i data-lucide="${icon}" style="width:32px;height:32px;color:#00B84A"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-txt-primary">${escapeHtml(title)} em breve</h2>
+        <p class="text-sm text-txt-secondary mt-3">${escapeHtml(desc)}</p>
+        <a href="#/overview" class="btn btn-primary mt-6"><i data-lucide="arrow-left"></i>Voltar pra Visão geral</a>
+      </div>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons({ nameAttr: 'data-lucide' });
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  BOOT
+ * ════════════════════════════════════════════════════════════════════════════ */
+(async function boot(){
+  if (!token) { renderLogin(); return; }
+  // valida token
+  try { await api('/overview'); }
+  catch (e) {
+    if (String(e.message).includes('403') || String(e.message).toLowerCase().includes('operador')) {
+      renderLogin('Sessão expirada ou usuário não autorizado.');
+    } else {
+      // mantém token, mas vai pra dashboard, erro será tratado lá
+    }
+    if (!token) return;
+  }
+  if (!location.hash) location.hash = '#/overview';
+  renderShell();
+})();
 </script>
 </body>
 </html>

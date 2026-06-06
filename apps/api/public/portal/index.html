@@ -4,253 +4,2214 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QR-API, Portal</title>
+
+  <!-- Tailwind via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonte Inter (Google Fonts) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- ===========================================================
+       Configuracao do Tailwind inline + design tokens
+       =========================================================== -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Arial', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            // Sidebar
+            'side-bg':    '#071625',
+            'side-text':  '#D8E4EF',
+            'side-muted': '#7E93AB',
+            // Surface
+            'app-bg':     '#F7F9FB',
+            'card-bg':    '#FFFFFF',
+            'card-border':'#E5EAF0',
+            // Brand
+            'brand':      '#00B84A',
+            'brand-dark': '#008A36',
+            'brand-soft': '#19C85A',
+            // Text
+            'ink':        '#111827',
+            'ink-soft':   '#374151',
+            'ink-2':      '#6B7280',
+            'ink-3':      '#94A3B8',
+          },
+          boxShadow: {
+            'card': '0 8px 24px rgba(15,23,42,0.04)',
+            'card-hover': '0 12px 32px rgba(15,23,42,0.08)',
+            'pop': '0 16px 48px rgba(15,23,42,0.12)',
+          },
+          borderRadius: {
+            'xl2': '12px',
+          },
+        }
+      }
+    }
+  </script>
+
   <style>
-    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    .card { background:#14161c; border:1px solid #232733; border-radius:14px; }
-    .btn { border-radius:10px; font-weight:600; transition:.15s; }
-    .btn-primary { background:#16a34a; color:#fff; }
-    .btn-primary:hover { background:#15803d; }
-    .btn-ghost { background:#1b1f29; color:#cbd5e1; border:1px solid #2a2f3c; }
-    .btn-ghost:hover { background:#222735; }
-    input,select { background:#0f1116; border:1px solid #2a2f3c; border-radius:10px; color:#e5e7eb; }
-    input:focus,select:focus { outline:none; border-color:#16a34a; }
-    .badge { border-radius:999px; font-size:11px; font-weight:600; padding:2px 10px; }
+    /* ===========================================================
+       Estilos custom: base, tipografia, scrollbar, animacoes
+       =========================================================== */
+    html, body { font-family: 'Inter', Arial, sans-serif; font-size: 14px; }
+    body { background: #F7F9FB; color: #111827; -webkit-font-smoothing: antialiased; }
+
+    /* Scrollbar mais discreta */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+    /* Scrollbar dentro da sidebar (tons escuros) */
+    .side-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); }
+    .side-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+    /* Card padrao */
+    .card {
+      background: #FFFFFF;
+      border: 1px solid #E5EAF0;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(15,23,42,0.04);
+    }
+
+    /* Labels uppercase para KPIs */
+    .label-up {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6B7280;
+    }
+
+    /* Badge base */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .badge-success { background:#DCFCE7; color:#15803D; }
+    .badge-warning { background:#FEF3C7; color:#B45309; }
+    .badge-danger  { background:#FEE2E2; color:#B91C1C; }
+    .badge-info    { background:#DBEAFE; color:#1D4ED8; }
+    .badge-muted   { background:#F1F5F9; color:#64748B; }
+
+    /* Sidebar item */
+    .side-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 14px; margin: 1px 8px;
+      border-radius: 8px;
+      color: #B6C5D6;
+      font-weight: 500;
+      font-size: 13.5px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      border-left: 3px solid transparent;
+      padding-left: 11px;
+    }
+    .side-item:hover { background: rgba(255,255,255,0.04); color: #fff; }
+    .side-item.active {
+      background: rgba(0, 200, 83, 0.18);
+      border-left: 3px solid #00C853;
+      color: #19C85A;
+    }
+    .side-item.active svg { color: #19C85A; }
+    .side-item svg { width: 18px; height: 18px; flex: none; }
+    .side-section-title {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #5D7493;
+      padding: 16px 22px 6px;
+    }
+
+    /* Botoes */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+      border-radius: 10px;
+      font-weight: 600; font-size: 13.5px;
+      padding: 8px 14px;
+      transition: background .15s, color .15s, box-shadow .15s, border-color .15s;
+      cursor: pointer;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .btn[disabled] { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background:#00B84A; color:#fff; }
+    .btn-primary:hover:not([disabled]) { background:#008A36; }
+    .btn-secondary { background:#FFFFFF; color:#111827; border-color:#E5EAF0; }
+    .btn-secondary:hover:not([disabled]) { background:#F7F9FB; }
+    .btn-ghost { background: transparent; color:#374151; }
+    .btn-ghost:hover:not([disabled]) { background:#F1F5F9; }
+    .btn-dark { background:#0F172A; color:#fff; }
+    .btn-dark:hover:not([disabled]) { background:#1E293B; }
+    .btn-danger { background:#FEE2E2; color:#B91C1C; }
+    .btn-danger:hover:not([disabled]) { background:#FCA5A5; color:#7F1D1D; }
+    .btn-sm { padding: 6px 10px; font-size: 12.5px; }
+    .btn-lg { padding: 11px 18px; font-size: 14.5px; }
+
+    /* Inputs */
+    .input, .select, .textarea {
+      width: 100%;
+      background: #FFFFFF;
+      border: 1px solid #E5EAF0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13.5px;
+      color: #111827;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input:focus, .select:focus, .textarea:focus {
+      outline: none;
+      border-color: #00B84A;
+      box-shadow: 0 0 0 3px rgba(0,184,74,0.12);
+    }
+    .input[disabled], .select[disabled], .textarea[disabled] {
+      background:#F7F9FB; color:#94A3B8; cursor: not-allowed;
+    }
+    .field-label {
+      display:block; font-size: 12.5px; font-weight: 600; color:#374151; margin-bottom: 6px;
+    }
+    .field-help { font-size: 12px; color:#94A3B8; margin-top: 4px; }
+
+    /* Foco visivel acessivel */
+    button:focus-visible, a:focus-visible, .side-item:focus-visible {
+      outline: 2px solid #00B84A; outline-offset: 2px;
+    }
+
+    /* Topbar search com atalho */
+    .topbar-search {
+      display: flex; align-items: center; gap: 10px;
+      background: #F1F5F9; border: 1px solid #E5EAF0; border-radius: 10px;
+      padding: 8px 12px;
+      width: 380px; max-width: 100%;
+    }
+    .topbar-search input {
+      background: transparent; border: none; outline: none; flex: 1;
+      font-size: 13.5px; color: #111827;
+    }
+    .topbar-search input::placeholder { color: #94A3B8; }
+    .kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: #FFFFFF; border: 1px solid #E5EAF0; border-bottom-width: 2px;
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-size: 11px; color: #6B7280; font-weight: 600;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Animacao pulse para skeletons */
+    @keyframes skel-pulse { 0% { opacity: 1; } 50% { opacity: .5; } 100% { opacity: 1; } }
+    .skel { background: #E5EAF0; border-radius: 6px; animation: skel-pulse 1.4s ease-in-out infinite; }
+
+    /* Toasts */
+    .toast {
+      display:flex; align-items:flex-start; gap:12px;
+      background:#FFFFFF; border:1px solid #E5EAF0;
+      border-radius: 12px; padding: 12px 14px;
+      box-shadow: 0 16px 48px rgba(15,23,42,0.12);
+      width: 320px;
+      animation: toast-in .25s ease-out;
+    }
+    @keyframes toast-in { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .toast-success { border-left: 3px solid #16A34A; }
+    .toast-error { border-left: 3px solid #EF4444; }
+    .toast-info { border-left: 3px solid #3B82F6; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 80;
+      background: rgba(15,23,42,0.55); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+      animation: fade-in .15s ease-out;
+    }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    .modal-card {
+      background: #FFFFFF; border-radius: 16px;
+      width: 480px; max-width: 100%;
+      box-shadow: 0 32px 64px rgba(15,23,42,0.24);
+      animation: pop-in .2s ease-out;
+    }
+    @keyframes pop-in { from { transform: scale(.96); opacity:0; } to { transform: scale(1); opacity:1; } }
+
+    /* Tabela */
+    table.qr-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    table.qr-table thead th {
+      text-align: left; font-weight: 600; font-size: 12px;
+      color: #6B7280; text-transform: uppercase; letter-spacing: 0.04em;
+      padding: 10px 16px; background:#F8FAFC; border-bottom: 1px solid #E5EAF0;
+    }
+    table.qr-table tbody td {
+      padding: 14px 16px; border-bottom: 1px solid #F1F5F9; color: #111827;
+    }
+    table.qr-table tbody tr:last-child td { border-bottom: none; }
+    table.qr-table tbody tr:hover { background: #FAFBFC; }
+
+    /* Tabs */
+    .tabs { display: inline-flex; background:#F1F5F9; border-radius: 10px; padding: 3px; }
+    .tab {
+      padding: 6px 14px; font-size: 13px; font-weight: 600; color:#6B7280;
+      border-radius: 8px; cursor: pointer; transition: background .15s, color .15s;
+    }
+    .tab.active { background: #FFFFFF; color:#111827; box-shadow: 0 1px 3px rgba(15,23,42,0.06); }
+
+    /* Code block */
+    .code-block {
+      background: #0F172A; color: #E2E8F0;
+      font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.65;
+      border-radius: 10px; padding: 16px; overflow-x: auto;
+      white-space: pre;
+    }
+    .code-block .tk-key { color: #7DD3FC; }
+    .code-block .tk-str { color: #86EFAC; }
+    .code-block .tk-num { color: #FCD34D; }
+    .code-block .tk-com { color: #64748B; font-style: italic; }
+    .code-block .tk-fn  { color: #C4B5FD; }
+
+    /* Progress */
+    .progress { background:#F1F5F9; border-radius: 999px; height: 8px; overflow: hidden; }
+    .progress > div { background: linear-gradient(90deg, #00B84A, #19C85A); height: 100%; border-radius: 999px; transition: width .3s; }
+
+    /* Tooltip simples */
+    [data-tip] { position: relative; }
+    [data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+      background:#0F172A; color:#fff; padding:6px 10px; border-radius:8px;
+      font-size: 11.5px; white-space: nowrap; z-index: 70;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.18);
+    }
+
+    /* Logo grid de QR pixels */
+    .qr-logo { display: inline-grid; grid-template-columns: repeat(4, 1fr); gap: 2px; width: 22px; height: 22px; }
+    .qr-logo span { background:#19C85A; border-radius: 1.5px; }
+    .qr-logo span.off { background: transparent; }
+
+    /* Skeleton helpers */
+    .skel-line { height: 14px; border-radius: 6px; }
+    .skel-circle { border-radius: 999px; }
+
+    /* Estado vazio */
+    .empty {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      padding: 48px 24px; text-align: center; color:#6B7280;
+    }
+    .empty .empty-icon {
+      width: 64px; height: 64px; border-radius: 999px;
+      background: #ECFDF5; color:#16A34A;
+      display:flex; align-items:center; justify-content:center;
+      margin-bottom: 16px;
+    }
+
+    /* Hide scrollbar nas tabs scrollaveis */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="bg-[#0b0c10] text-slate-200 min-h-screen">
-  <div id="app" class="max-w-5xl mx-auto px-4 py-8"></div>
+<body>
+  <!-- =========================================================================
+       Root da aplicacao. O JS no fim do arquivo monta a UI aqui.
+       ========================================================================= -->
+  <div id="app"></div>
+
+  <!-- Container fixo de toasts -->
+  <div id="toasts" class="fixed bottom-6 right-6 z-[90] flex flex-col gap-3"></div>
+
+  <!-- Container de modal (fora do app pra nao ser substituido em re-render) -->
+  <div id="modal-root"></div>
 
 <script>
-const API = '/portal/api';
-let token = localStorage.getItem('qrapi_token') || null;
-let state = { me: null, instances: [], keys: [], plans: [] };
+/* =============================================================================
+ * QR-API Portal Cliente - SPA single-file
+ * Tudo vanilla JS, sem framework. Router por hash. Auth JWT em localStorage.
+ * ============================================================================= */
 
-function h(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
-function money(n){ return 'R$ ' + Number(n).toLocaleString('pt-BR'); }
-async function api(path, opts={}) {
-  const res = await fetch(API+path, {
-    method: opts.method||'GET',
-    headers: { 'Content-Type':'application/json', ...(token?{Authorization:'Bearer '+token}:{}) },
-    ...(opts.body?{body:JSON.stringify(opts.body)}:{})
+const API_BASE = '/portal/api';
+const DOCS_URL = 'https://github.com/joaogorila/qr-api';
+
+// Token JWT persistido
+let token = localStorage.getItem('qrapi_token') || null;
+
+// Estado global em memoria
+const state = {
+  me: null,           // dados de /me
+  instances: [],      // /instances
+  keys: [],           // /keys
+  plans: [],          // /plans
+  providers: { mercadopago: true, stripe: false },
+  defaultProvider: 'mercadopago',
+  invoices: [],       // /billing/invoices
+  loading: false,
+};
+
+/* ---------- Utilidades --------------------------------------------------- */
+
+function $(sel, root=document) { return root.querySelector(sel); }
+function $$(sel, root=document) { return Array.from(root.querySelectorAll(sel)); }
+function el(html) {
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  return t.content.firstChild;
+}
+function money(n) {
+  if (n == null || isNaN(n)) return 'R$ —';
+  return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  try {
+    const d = new Date(s);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch { return '—'; }
+}
+function relTime(s) {
+  if (!s) return 'nunca';
+  const d = new Date(s);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'agora';
+  if (diff < 3600) return Math.floor(diff/60) + 'min atras';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h atras';
+  return Math.floor(diff/86400) + 'd atras';
+}
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Wrapper fetch com auth e tratamento de erro padronizado
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API_BASE + path, {
+    method: opts.method || 'GET',
+    headers,
+    ...(opts.body ? { body: JSON.stringify(opts.body) } : {})
   });
-  const data = await res.json().catch(()=>({}));
-  if (!res.ok) throw new Error(data?.error?.message || data?.error || 'Erro');
+  let data = {};
+  try { data = await res.json(); } catch { /* sem body */ }
+  if (!res.ok) {
+    const msg = data?.error?.message || data?.error || data?.message || 'Erro inesperado';
+    throw new Error(msg);
+  }
   return data;
 }
 
-// ─── Auth ───────────────────────────────────────────────────────────────────
-function renderAuth(mode='login') {
-  const app = document.getElementById('app');
-  app.innerHTML = '';
-  app.appendChild(h(`
-    <div class="max-w-md mx-auto mt-16">
-      <div class="text-center mb-8">
-        <div class="text-3xl font-bold tracking-tight">QR-API</div>
-        <div class="text-slate-400 mt-1">WhatsApp API por QR, mensagens ilimitadas por numero</div>
+/* ---------- Toasts ------------------------------------------------------- */
+
+function toast(message, type = 'info') {
+  const root = $('#toasts');
+  const icon = type === 'success' ? 'check-circle-2'
+             : type === 'error' ? 'alert-circle'
+             : 'info';
+  const color = type === 'success' ? 'text-green-600'
+              : type === 'error' ? 'text-red-600'
+              : 'text-blue-600';
+  const node = el(`
+    <div class="toast toast-${type}">
+      <div class="${color} mt-0.5"><i data-lucide="${icon}" class="w-5 h-5"></i></div>
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-ink">${escapeHtml(message)}</div>
       </div>
-      <div class="card p-6">
-        <div class="flex gap-2 mb-5">
-          <button id="tab-login" class="btn flex-1 py-2 ${mode==='login'?'btn-primary':'btn-ghost'}">Entrar</button>
-          <button id="tab-signup" class="btn flex-1 py-2 ${mode==='signup'?'btn-primary':'btn-ghost'}">Criar conta</button>
+      <button type="button" class="text-ink-3 hover:text-ink" aria-label="Fechar">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+  `);
+  node.querySelector('button').addEventListener('click', () => node.remove());
+  root.appendChild(node);
+  lucide.createIcons();
+  setTimeout(() => { node.style.opacity = '0'; node.style.transition = 'opacity .25s'; setTimeout(()=>node.remove(), 250); }, 4000);
+}
+
+/* ---------- Modal -------------------------------------------------------- */
+
+function openModal({ title, body, footer, dismissOnOverlay = false, size = 480 }) {
+  const root = $('#modal-root');
+  root.innerHTML = '';
+  const overlay = el(`
+    <div class="modal-overlay">
+      <div class="modal-card" style="width:${size}px" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-between px-6 pt-5 pb-3">
+          <h3 class="text-lg font-semibold text-ink">${escapeHtml(title)}</h3>
+          <button type="button" class="text-ink-3 hover:text-ink modal-close" aria-label="Fechar">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
         </div>
-        <div id="auth-form" class="space-y-3"></div>
-        <div id="auth-err" class="text-red-400 text-sm mt-3"></div>
+        <div class="px-6 pb-4 modal-body"></div>
+        <div class="px-6 py-4 bg-[#F8FAFC] rounded-b-2xl border-t border-card-border flex items-center justify-end gap-2 modal-footer"></div>
       </div>
     </div>
-  `));
-  document.getElementById('tab-login').onclick=()=>renderAuth('login');
-  document.getElementById('tab-signup').onclick=()=>renderAuth('signup');
-  const form = document.getElementById('auth-form');
-  if (mode==='signup') {
-    form.appendChild(h(`<input id="f-name" class="w-full px-3 py-2.5" placeholder="Seu nome" />`));
-    form.appendChild(h(`<input id="f-company" class="w-full px-3 py-2.5" placeholder="Empresa (opcional)" />`));
+  `);
+  const bodyEl = overlay.querySelector('.modal-body');
+  const footerEl = overlay.querySelector('.modal-footer');
+  if (typeof body === 'string') bodyEl.innerHTML = body; else bodyEl.appendChild(body);
+  if (footer) {
+    if (typeof footer === 'string') footerEl.innerHTML = footer;
+    else footerEl.appendChild(footer);
+  } else {
+    footerEl.remove();
   }
-  form.appendChild(h(`<input id="f-email" type="email" class="w-full px-3 py-2.5" placeholder="Email" />`));
-  form.appendChild(h(`<input id="f-pass" type="password" class="w-full px-3 py-2.5" placeholder="Senha (min 8)" />`));
-  form.appendChild(h(`<button id="f-submit" class="btn btn-primary w-full py-2.5 mt-1">${mode==='signup'?'Criar conta gratis':'Entrar'}</button>`));
-  document.getElementById('f-submit').onclick = async () => {
-    const err = document.getElementById('auth-err'); err.textContent='';
-    try {
-      const email = document.getElementById('f-email').value.trim();
-      const password = document.getElementById('f-pass').value;
-      let res;
-      if (mode==='signup') {
-        res = await api('/signup',{method:'POST',body:{ name:document.getElementById('f-name').value, companyName:document.getElementById('f-company').value, email, password }});
-        if (res.testKey) setTimeout(()=>alert('Sua chave de TESTE (guarde):\n\n'+res.testKey),300);
-      } else {
-        res = await api('/login',{method:'POST',body:{ email, password }});
-      }
-      token = res.token; localStorage.setItem('qrapi_token', token);
-      await loadDashboard();
-    } catch(e){ err.textContent = e.message; }
-  };
+  overlay.querySelector('.modal-close').addEventListener('click', closeModal);
+  if (dismissOnOverlay) {
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+  }
+  root.appendChild(overlay);
+  lucide.createIcons();
+  return overlay;
+}
+function closeModal() { $('#modal-root').innerHTML = ''; }
+
+/* =========================================================================
+ *  ROUTER
+ *    Hash routing: #/login, #/signup, #/dashboard, #/instances,
+ *                  #/developers, #/billing, #/coming-soon/:slug
+ * ========================================================================= */
+
+const ROUTES = {
+  'login':       renderAuth,
+  'signup':      () => renderAuth('signup'),
+  'dashboard':   renderDashboard,
+  'instances':   renderInstances,
+  'developers':  renderDevelopers,
+  'billing':     renderBilling,
+  'coming-soon': renderComingSoon,
+};
+
+function go(path) {
+  if (location.hash !== '#' + path) location.hash = path;
+  else handleRoute();
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-async function loadDashboard() {
-  try {
-    const [me, inst, keys] = await Promise.all([ api('/me'), api('/instances'), api('/keys') ]);
-    state = { me, instances: inst.data, keys: keys.data, plans: me.plans };
-    renderDashboard();
-  } catch(e) { logout(); }
+function handleRoute() {
+  const hash = location.hash.replace(/^#/, '') || '/';
+  const parts = hash.split('/').filter(Boolean);
+  // Sem token: forca login (exceto signup)
+  if (!token) {
+    const route = parts[0] || 'login';
+    if (route !== 'login' && route !== 'signup') { location.hash = '/login'; return; }
+    return ROUTES[route]();
+  }
+  // Logado: default dashboard
+  if (!parts.length || parts[0] === 'login' || parts[0] === 'signup') {
+    location.hash = '/dashboard'; return;
+  }
+  const fn = ROUTES[parts[0]];
+  if (!fn) { location.hash = '/dashboard'; return; }
+  fn(parts.slice(1));
 }
 
-function logout(){ token=null; localStorage.removeItem('qrapi_token'); renderAuth('login'); }
+window.addEventListener('hashchange', handleRoute);
 
-function statusColor(s){
-  return ({CONNECTED:'bg-green-900 text-green-300', QR_PENDING:'bg-amber-900 text-amber-300', PROVISIONING:'bg-slate-700 text-slate-300', DISCONNECTED:'bg-red-900 text-red-300', BANNED:'bg-red-950 text-red-400', DEGRADED:'bg-orange-900 text-orange-300'})[s]||'bg-slate-700 text-slate-300';
-}
+/* =========================================================================
+ *  SHELL com Sidebar + Topbar (para telas autenticadas)
+ * ========================================================================= */
 
-function renderDashboard() {
-  const { me, instances, keys, plans } = state;
-  const sub = me.subscription;
-  const app = document.getElementById('app');
-  app.innerHTML='';
-  app.appendChild(h(`
-    <div class="flex items-center justify-between mb-8">
-      <div>
-        <div class="text-2xl font-bold">${me.account?.name||'Conta'}</div>
-        <div class="text-slate-400 text-sm">${me.user?.email||''}</div>
-      </div>
-      <button id="logout" class="btn btn-ghost px-4 py-2">Sair</button>
+function renderShell(activeKey, content) {
+  const app = $('#app');
+  app.innerHTML = '';
+
+  // Pega 1a chave LIVE pra mostrar no rodape da sidebar
+  const liveKey = (state.keys || []).find(k => k.mode === 'live') || (state.keys || [])[0];
+  const userInitials = (state.me?.user?.name || 'U')
+    .split(/\s+/).slice(0,2).map(s => s[0]).join('').toUpperCase();
+  const company = state.me?.account?.companyName || 'Minha empresa';
+  const userName = state.me?.user?.name || 'Usuario';
+  const userEmail = state.me?.user?.email || '';
+
+  const shell = el(`
+    <div class="flex min-h-screen">
+      <!-- ============= SIDEBAR ============= -->
+      <aside class="w-[260px] flex-none bg-side-bg text-side-text flex flex-col">
+        <!-- Brand -->
+        <div class="px-5 py-5 flex items-center gap-2.5 border-b border-white/5">
+          <span class="qr-logo" aria-hidden="true">
+            <span></span><span></span><span class="off"></span><span></span>
+            <span></span><span class="off"></span><span></span><span></span>
+            <span class="off"></span><span></span><span></span><span class="off"></span>
+            <span></span><span></span><span class="off"></span><span></span>
+          </span>
+          <div class="leading-tight">
+            <div class="text-white font-bold text-[15px] tracking-tight">QR-API</div>
+            <div class="text-[10.5px] text-side-muted -mt-0.5">WhatsApp API</div>
+          </div>
+        </div>
+
+        <!-- Conta atual -->
+        <div class="px-3 py-3 border-b border-white/5">
+          <button type="button" class="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition text-left">
+            <div class="w-8 h-8 rounded-lg bg-brand/15 text-brand-soft font-bold flex items-center justify-center text-[12px]">
+              ${escapeHtml(company.substring(0,2).toUpperCase())}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold text-white truncate">${escapeHtml(company)}</div>
+              <div class="text-[11px] text-side-muted truncate">Workspace</div>
+            </div>
+            <i data-lucide="chevrons-up-down" class="w-4 h-4 text-side-muted"></i>
+          </button>
+        </div>
+
+        <!-- Navegacao (scrollavel) -->
+        <nav class="flex-1 overflow-y-auto side-scroll py-2">
+          <div class="side-section-title">Geral</div>
+          ${sideItem('dashboard',   'home',          'Dashboard',   activeKey, false)}
+          ${sideItem('instances',   'server',        'Instances',   activeKey, false)}
+          ${sideItem('messages',    'send',          'Messages',    activeKey, true)}
+          ${sideItem('contacts',    'user-round',    'Contacts',    activeKey, true)}
+          ${sideItem('templates',   'file-text',     'Templates',   activeKey, true)}
+
+          <div class="side-section-title">Automacao</div>
+          ${sideItem('webhooks',    'webhook',       'Webhooks',    activeKey, true)}
+          ${sideItem('automations', 'workflow',      'Automations', activeKey, true)}
+          ${sideItem('flows',       'git-branch',    'Flows',       activeKey, true)}
+
+          <div class="side-section-title">Insights</div>
+          ${sideItem('analytics',   'bar-chart-3',   'Analytics',   activeKey, true)}
+          ${sideItem('logs',        'terminal',      'Logs',        activeKey, true)}
+
+          <div class="side-section-title">Conta</div>
+          ${sideItem('developers',  'code-2',        'Developers',  activeKey, false)}
+          ${sideItem('settings',    'settings',      'Settings',    activeKey, true)}
+          ${sideItem('billing',     'credit-card',   'Billing',     activeKey, false)}
+          ${sideItem('team',        'users',         'Team',        activeKey, true)}
+          <a href="${DOCS_URL}" target="_blank" rel="noopener" class="side-item">
+            <i data-lucide="book-open"></i>
+            <span class="flex-1">Docs</span>
+            <i data-lucide="external-link" class="w-3.5 h-3.5 opacity-60"></i>
+          </a>
+        </nav>
+
+        <!-- Rodape da sidebar -->
+        <div class="border-t border-white/5 p-3 space-y-3">
+          <!-- Environment -->
+          <div class="rounded-lg bg-white/[0.03] border border-white/5 px-3 py-2.5">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10.5px] uppercase tracking-wider text-side-muted font-semibold">Environment</span>
+              <span class="w-2 h-2 rounded-full bg-brand"></span>
+            </div>
+            <select class="w-full bg-transparent text-[13px] text-white font-semibold border-0 outline-none cursor-pointer" id="env-select">
+              <option value="prod" selected>Production</option>
+              <option value="sandbox" disabled>Sandbox (em breve)</option>
+            </select>
+          </div>
+
+          <!-- API Key (mascarada) -->
+          <div class="rounded-lg bg-white/[0.03] border border-white/5 px-3 py-2.5">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10.5px] uppercase tracking-wider text-side-muted font-semibold">API Key</span>
+              <i data-lucide="key-round" class="w-3.5 h-3.5 text-side-muted"></i>
+            </div>
+            <div class="flex items-center gap-2">
+              <code class="flex-1 text-[12px] font-mono text-side-text truncate">
+                ${liveKey ? escapeHtml(liveKey.keyPrefix) + '••••••••' : 'sem chave ainda'}
+              </code>
+              <button type="button" id="copy-key-btn" class="text-side-muted hover:text-white" data-tip="Ver no Developers" aria-label="Ver chave">
+                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Help -->
+          <div class="rounded-lg bg-brand/10 border border-brand/20 px-3 py-2.5">
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="life-buoy" class="w-4 h-4 text-brand-soft mt-0.5"></i>
+              <div class="text-[12px] text-side-text leading-relaxed">
+                Need help? Check our
+                <a href="${DOCS_URL}" target="_blank" class="text-brand-soft font-semibold hover:underline">docs</a>
+                or contact support anytime.
+              </div>
+            </div>
+          </div>
+
+          <!-- User -->
+          <div class="pt-2 flex items-center gap-2.5 px-1">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-brand to-brand-dark text-white text-[11px] font-bold flex items-center justify-center">
+              ${escapeHtml(userInitials)}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[12.5px] font-semibold text-white truncate">${escapeHtml(userName)}</div>
+              <div class="text-[11px] text-side-muted truncate">${escapeHtml(userEmail)}</div>
+            </div>
+            <button type="button" id="logout-btn" class="text-side-muted hover:text-white" data-tip="Sair" aria-label="Sair">
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ============= MAIN ============= -->
+      <main class="flex-1 min-w-0 flex flex-col">
+        <!-- Topbar -->
+        <header class="h-[72px] flex-none bg-white border-b border-card-border flex items-center justify-between px-8">
+          <div class="topbar-search">
+            <i data-lucide="search" class="w-4 h-4 text-ink-3"></i>
+            <input type="text" placeholder="Search anything..." aria-label="Buscar" />
+            <span class="kbd">⌘K</span>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <span class="badge badge-success">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+              Production
+            </span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="go('/developers')">
+              <i data-lucide="key-round" class="w-4 h-4"></i>
+              API Key
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" data-tip="Notificacoes" aria-label="Notificacoes">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+            </button>
+            <div class="w-px h-7 bg-card-border"></div>
+            <button type="button" class="flex items-center gap-2 hover:bg-app-bg rounded-lg px-2 py-1.5 transition">
+              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-brand to-brand-dark text-white text-[11px] font-bold flex items-center justify-center">
+                ${escapeHtml(userInitials)}
+              </div>
+              <div class="text-left leading-tight hidden md:block">
+                <div class="text-[12.5px] font-semibold text-ink">${escapeHtml(userName.split(' ')[0])}</div>
+                <div class="text-[11px] text-ink-2">${escapeHtml(state.me?.account?.companyName || '')}</div>
+              </div>
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-ink-3"></i>
+            </button>
+          </div>
+        </header>
+
+        <!-- Conteudo -->
+        <div id="page" class="flex-1 overflow-y-auto p-8 bg-app-bg"></div>
+      </main>
     </div>
-    <div class="grid sm:grid-cols-3 gap-4 mb-8">
-      <div class="card p-5">
-        <div class="text-slate-400 text-sm">Assinatura</div>
-        <div class="text-xl font-bold mt-1">${sub.planId?sub.planId.toUpperCase():'Trial'}</div>
-        <span class="badge mt-2 inline-block ${sub.status==='ACTIVE'?'bg-green-900 text-green-300':'bg-amber-900 text-amber-300'}">${sub.status}</span>
+  `);
+
+  app.appendChild(shell);
+
+  // Eventos comuns
+  $('#logout-btn').addEventListener('click', logout);
+  $$('.side-item[data-route]').forEach(item => {
+    item.addEventListener('click', () => {
+      const route = item.dataset.route;
+      const isSoon = item.dataset.soon === '1';
+      if (isSoon) go('/coming-soon/' + route);
+      else go('/' + route);
+    });
+  });
+
+  $('#page').appendChild(content);
+  lucide.createIcons();
+}
+
+function sideItem(route, icon, label, activeKey, comingSoon) {
+  const isActive = activeKey === route;
+  return `
+    <div class="side-item ${isActive ? 'active' : ''}" data-route="${route}" data-soon="${comingSoon ? 1 : 0}" tabindex="0" role="button">
+      <i data-lucide="${icon}"></i>
+      <span class="flex-1">${label}</span>
+      ${comingSoon ? '<span class="badge badge-muted text-[10px] px-1.5 py-0">em breve</span>' : ''}
+    </div>
+  `;
+}
+
+/* =========================================================================
+ *  AUTH (Login + Signup)
+ * ========================================================================= */
+
+function renderAuth(mode = 'login') {
+  // Se vier de #/signup, abrir aba signup
+  if (location.hash === '#/signup') mode = 'signup';
+  const app = $('#app');
+  app.innerHTML = '';
+
+  const wrap = el(`
+    <div class="min-h-screen flex">
+      <!-- Painel esquerdo (decorativo, escondido em mobile) -->
+      <div class="hidden lg:flex w-1/2 bg-side-bg text-white relative overflow-hidden">
+        <div class="absolute inset-0 opacity-30" style="background:radial-gradient(circle at 30% 20%, #00B84A 0%, transparent 50%), radial-gradient(circle at 70% 80%, #0EA5E9 0%, transparent 50%)"></div>
+        <div class="relative z-10 flex flex-col justify-between p-12 w-full">
+          <div class="flex items-center gap-2.5">
+            <span class="qr-logo">
+              <span></span><span></span><span class="off"></span><span></span>
+              <span></span><span class="off"></span><span></span><span></span>
+              <span class="off"></span><span></span><span></span><span class="off"></span>
+              <span></span><span></span><span class="off"></span><span></span>
+            </span>
+            <div class="font-bold text-lg">QR-API</div>
+          </div>
+
+          <div class="space-y-6">
+            <h1 class="text-4xl font-bold leading-tight">
+              API de WhatsApp<br/>
+              <span class="text-brand-soft">por QR Code</span>
+            </h1>
+            <p class="text-side-text/80 text-[15px] leading-relaxed max-w-md">
+              Conecte um numero, envie mensagens, receba webhooks. Sem aprovacao da Meta, com anti-ban embutido.
+            </p>
+            <ul class="space-y-2.5 text-[14px] text-side-text/80">
+              <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-brand-soft"></i> Webhooks com HMAC, retry e DLQ</li>
+              <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-brand-soft"></i> Idempotency e healthScore por instancia</li>
+              <li class="flex items-center gap-2.5"><i data-lucide="check" class="w-4 h-4 text-brand-soft"></i> SDKs e exemplos em cURL, Node e Python</li>
+            </ul>
+          </div>
+
+          <div class="text-side-muted text-[12px]">
+            © ${new Date().getFullYear()} QR-API. Hibrido modulo Followfy / SaaS standalone.
+          </div>
+        </div>
       </div>
-      <div class="card p-5">
-        <div class="text-slate-400 text-sm">Numeros</div>
-        <div class="text-xl font-bold mt-1">${me.usage.instances} / ${me.usage.allowedInstances}</div>
-        <div class="text-slate-500 text-xs mt-2">conectados vs. permitidos</div>
+
+      <!-- Painel direito (form) -->
+      <div class="flex-1 flex items-center justify-center p-6 bg-app-bg">
+        <div class="w-full max-w-md">
+          <div class="lg:hidden flex items-center gap-2.5 justify-center mb-8">
+            <span class="qr-logo">
+              <span></span><span></span><span class="off"></span><span></span>
+              <span></span><span class="off"></span><span></span><span></span>
+              <span class="off"></span><span></span><span></span><span class="off"></span>
+              <span></span><span></span><span class="off"></span><span></span>
+            </span>
+            <div class="font-bold text-lg text-ink">QR-API</div>
+          </div>
+
+          <div class="card p-8">
+            <div class="tabs mb-6 w-full" role="tablist">
+              <button type="button" class="tab flex-1 ${mode==='login'?'active':''}" data-mode="login">Entrar</button>
+              <button type="button" class="tab flex-1 ${mode==='signup'?'active':''}" data-mode="signup">Criar conta</button>
+            </div>
+
+            <div id="auth-form"></div>
+
+            <div id="auth-err" class="hidden mt-4 text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></div>
+          </div>
+
+          <div class="text-center text-[12.5px] text-ink-2 mt-6">
+            Ao continuar voce concorda com nossos termos e politica de privacidade.
+          </div>
+        </div>
       </div>
-      <div class="card p-5">
-        <div class="text-slate-400 text-sm">Mensagens hoje</div>
-        <div class="text-xl font-bold mt-1">${me.usage.messagesSentToday}</div>
-        <div class="text-slate-500 text-xs mt-2">enviadas</div>
+    </div>
+  `);
+  app.appendChild(wrap);
+
+  $$('.tab', wrap).forEach(t => {
+    t.addEventListener('click', () => mountAuthForm(t.dataset.mode));
+  });
+  mountAuthForm(mode);
+  lucide.createIcons();
+}
+
+function mountAuthForm(mode) {
+  // troca classe active das tabs
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  const form = $('#auth-form');
+  const errBox = $('#auth-err');
+  errBox.classList.add('hidden');
+
+  if (mode === 'login') {
+    form.innerHTML = `
+      <h2 class="text-xl font-bold text-ink mb-1">Bem vindo de volta</h2>
+      <p class="text-ink-2 text-[13.5px] mb-5">Entre para gerenciar suas instancias e chaves.</p>
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label class="field-label" for="lg-email">Email</label>
+          <input id="lg-email" class="input" type="email" required placeholder="voce@empresa.com" autocomplete="email" />
+        </div>
+        <div>
+          <label class="field-label" for="lg-pass">Senha</label>
+          <input id="lg-pass" class="input" type="password" required placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg w-full">
+          Entrar <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </form>
+    `;
+    lucide.createIcons();
+    $('#login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = $('#lg-email').value.trim();
+      const password = $('#lg-pass').value;
+      try {
+        const data = await api('/login', { method: 'POST', body: { email, password } });
+        token = data.token;
+        localStorage.setItem('qrapi_token', token);
+        toast('Bem vindo de volta!', 'success');
+        await loadCommonData();
+        go('/dashboard');
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      }
+    });
+  } else {
+    form.innerHTML = `
+      <h2 class="text-xl font-bold text-ink mb-1">Criar conta</h2>
+      <p class="text-ink-2 text-[13.5px] mb-5">Trial com chave de teste liberada na hora.</p>
+      <form id="signup-form" class="space-y-4">
+        <div>
+          <label class="field-label" for="sg-name">Nome</label>
+          <input id="sg-name" class="input" type="text" required placeholder="Joao Silva" autocomplete="name" />
+        </div>
+        <div>
+          <label class="field-label" for="sg-email">Email</label>
+          <input id="sg-email" class="input" type="email" required placeholder="voce@empresa.com" autocomplete="email" />
+        </div>
+        <div>
+          <label class="field-label" for="sg-company">Empresa</label>
+          <input id="sg-company" class="input" type="text" required placeholder="Minha Empresa LTDA" autocomplete="organization" />
+        </div>
+        <div>
+          <label class="field-label" for="sg-pass">Senha</label>
+          <input id="sg-pass" class="input" type="password" required placeholder="Pelo menos 8 caracteres" autocomplete="new-password" minlength="8" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg w-full">
+          Criar conta <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </form>
+    `;
+    lucide.createIcons();
+    $('#signup-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = $('#sg-name').value.trim();
+      const email = $('#sg-email').value.trim();
+      const companyName = $('#sg-company').value.trim();
+      const password = $('#sg-pass').value;
+      try {
+        const data = await api('/signup', { method: 'POST', body: { name, email, companyName, password } });
+        token = data.token;
+        localStorage.setItem('qrapi_token', token);
+        toast('Conta criada com sucesso!', 'success');
+        await loadCommonData();
+        go('/dashboard');
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      }
+    });
+  }
+}
+
+function logout() {
+  localStorage.removeItem('qrapi_token');
+  token = null;
+  state.me = null;
+  state.instances = [];
+  state.keys = [];
+  state.plans = [];
+  toast('Voce saiu da sua conta', 'info');
+  go('/login');
+}
+
+/* =========================================================================
+ *  CARGA DE DADOS COMUNS (chamada apos login/signup e ao montar shell)
+ * ========================================================================= */
+
+async function loadCommonData() {
+  try {
+    const [me, instances, keys, plansData] = await Promise.all([
+      api('/me'),
+      api('/instances').catch(() => ({ data: [] })),
+      api('/keys').catch(() => ({ data: [] })),
+      api('/plans').catch(() => ({ data: [] })),
+    ]);
+    state.me = me;
+    state.instances = instances.data || [];
+    state.keys = keys.data || [];
+    state.plans = plansData.data || [];
+    state.providers = plansData.providers || { mercadopago: true, stripe: false };
+    state.defaultProvider = plansData.defaultProvider || 'mercadopago';
+  } catch (err) {
+    // Se /me falhar com 401, faz logout
+    if (/401|nao autorizado|invalid token/i.test(err.message)) {
+      logout();
+    } else {
+      toast('Erro ao carregar dados: ' + err.message, 'error');
+    }
+  }
+}
+
+/* =========================================================================
+ *  TELA: Dashboard
+ * ========================================================================= */
+
+async function renderDashboard() {
+  // Garante dados frescos
+  if (!state.me) await loadCommonData();
+  if (!state.me) return; // pode ter deslogado no meio
+
+  const usage = state.me.usage || { instances: 0, allowedInstances: 0, messagesSentToday: 0 };
+  const subscription = state.me.subscription || { status: 'trialing', planId: null, quantity: 1 };
+  const planObj = state.plans.find(p => p.id === subscription.planId) || state.plans[0];
+
+  const page = el(`<div class="space-y-6 max-w-[1400px] mx-auto"></div>`);
+
+  // Cabecalho da pagina
+  page.appendChild(el(`
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-[22px] font-bold text-ink">Dashboard</h1>
+        <p class="text-ink-2 text-[13.5px] mt-0.5">
+          Visao geral da sua conta, ${escapeHtml(state.me.account?.companyName || '')}
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" class="btn btn-secondary btn-sm">
+          <i data-lucide="calendar" class="w-4 h-4"></i>
+          Ultimos 7 dias
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openCreateInstanceModal()">
+          <i data-lucide="plus" class="w-4 h-4"></i> Nova instancia
+        </button>
       </div>
     </div>
   `));
-  document.getElementById('logout').onclick=logout;
 
-  // Planos
-  const plansEl = h(`<div class="mb-8"><div class="text-lg font-semibold mb-3">Planos</div><div class="grid sm:grid-cols-3 gap-4" id="plans"></div></div>`);
-  app.appendChild(plansEl);
-  const pg = plansEl.querySelector('#plans');
-  plans.forEach(p=>{
-    const active = sub.planId===p.id && sub.status==='ACTIVE';
-    const card = h(`
-      <div class="card p-5">
-        <div class="font-bold text-lg">${p.name}</div>
-        <div class="text-2xl font-bold mt-1">${money(p.priceMonthlyBRL)}<span class="text-sm text-slate-400 font-normal">/mes</span></div>
-        <ul class="text-sm text-slate-400 mt-3 space-y-1">${p.features.map(f=>`<li>- ${f}</li>`).join('')}</ul>
-        <button data-plan="${p.id}" class="btn ${active?'btn-ghost':'btn-primary'} w-full py-2 mt-4">${active?'Plano atual':'Assinar'}</button>
-      </div>`);
-    if(!active) card.querySelector('button').onclick=()=>checkout(p.id);
-    pg.appendChild(card);
+  // KPIs (grid 6 colunas)
+  page.appendChild(renderKpis(usage));
+
+  // Grid 12 colunas com sections
+  page.appendChild(el(`
+    <div class="grid grid-cols-12 gap-6">
+      <!-- Instance Status -->
+      <section class="col-span-12 lg:col-span-4 card overflow-hidden">
+        ${cardHeader('Instance Status', 'Estado em tempo real das suas instancias.', `
+          <button type="button" class="btn btn-ghost btn-sm" onclick="go('/instances')">
+            View all <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>`)}
+        <div id="inst-status-body"></div>
+        <div class="px-5 py-3 border-t border-card-border flex items-center justify-between bg-[#FAFBFC]">
+          <span class="text-[12.5px] text-ink-2">Auto reconnect</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked disabled />
+            <div class="w-9 h-5 bg-gray-200 peer-checked:bg-brand rounded-full transition relative">
+              <div class="absolute top-0.5 left-0.5 bg-white w-4 h-4 rounded-full transition peer-checked:translate-x-4"></div>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Connect New Instance -->
+      <section class="col-span-12 lg:col-span-3 card p-5">
+        ${cardHeader('Connect New Instance', 'Escaneie o QR no WhatsApp do celular.', '')}
+        <div id="connect-qr" class="mt-2"></div>
+      </section>
+
+      <!-- Send Test Message -->
+      <section class="col-span-12 lg:col-span-5 card p-5">
+        ${cardHeader('Send Test Message', 'Para testar envio, use a API com sua chave.', '')}
+        <div id="send-test" class="mt-2"></div>
+      </section>
+
+      <!-- Messaging Overview -->
+      <section class="col-span-12 lg:col-span-4 card p-5">
+        ${cardHeader('Messaging Overview', 'Volume e status das ultimas 24h.', `<span class="badge badge-muted">Ilustrativo</span>`)}
+        <div class="mt-3">${renderMessagingChart()}</div>
+      </section>
+
+      <!-- Recent Webhook Events -->
+      <section class="col-span-12 lg:col-span-3 card overflow-hidden">
+        ${cardHeader('Webhook Events', 'Ultimas entregas.', '')}
+        <div class="empty py-10">
+          <div class="empty-icon"><i data-lucide="webhook"></i></div>
+          <div class="text-[13.5px] font-semibold text-ink">Sem eventos recentes</div>
+          <div class="text-[12.5px] text-ink-2 mt-1 max-w-[220px]">Configure um webhook em Developers para comecar a receber eventos aqui.</div>
+        </div>
+      </section>
+
+      <!-- API Docs / Code -->
+      <section class="col-span-12 lg:col-span-5 card overflow-hidden">
+        ${cardHeader('API Documentation', 'Exemplo de chamada para enviar mensagem.', `
+          <a href="${DOCS_URL}" target="_blank" class="btn btn-ghost btn-sm">
+            View full docs <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          </a>`)}
+        <div class="px-5 pb-5">
+          <div class="tabs mb-3" role="tablist">
+            <button type="button" class="tab active" data-codetab="send">Send Message (JSON)</button>
+            <button type="button" class="tab" data-codetab="webhook">Webhook Example</button>
+          </div>
+          <div id="code-block-wrap" class="relative">
+            ${renderCodeBlock('send')}
+          </div>
+        </div>
+      </section>
+
+      <!-- Integrations -->
+      <section class="col-span-12 lg:col-span-4 card p-5">
+        ${cardHeader('Integrations', 'Conecte ao seu fluxo de trabalho.', `<button type="button" class="btn btn-ghost btn-sm" data-tip="Em breve" disabled>View all</button>`)}
+        <div class="grid grid-cols-2 gap-3 mt-3">
+          ${integrationCard('Claude Code', 'AI pair programming', 'sparkles', '#A855F7')}
+          ${integrationCard('Codex', 'Code generation', 'code', '#0EA5E9')}
+          ${integrationCard('Cursor', 'AI native IDE', 'mouse-pointer-2', '#F59E0B')}
+          ${integrationCard('Lovable', 'Build with AI', 'heart', '#EC4899')}
+        </div>
+      </section>
+
+      <!-- Delivery Analytics -->
+      <section class="col-span-12 lg:col-span-3 card p-5">
+        ${cardHeader('Delivery', 'Distribuicao de entrega.', `<span class="badge badge-muted">Ilustrativo</span>`)}
+        <div class="mt-2">${renderDonutChart()}</div>
+      </section>
+
+      <!-- Billing/Plan -->
+      <section class="col-span-12 lg:col-span-5 card p-5">
+        ${cardHeader('Plano atual', 'Status da sua assinatura e uso.', `
+          <button type="button" class="btn btn-primary btn-sm" onclick="go('/billing')">
+            <i data-lucide="trending-up" class="w-4 h-4"></i> Upgrade
+          </button>`)}
+        ${renderPlanCard(subscription, planObj, usage)}
+      </section>
+    </div>
+  `));
+
+  renderShell('dashboard', page);
+
+  // Preenche tabela de instances
+  renderInstanceStatusTable($('#inst-status-body'));
+  // Preenche QR
+  renderConnectQR($('#connect-qr'));
+  // Preenche send test
+  renderSendTest($('#send-test'));
+
+  // Tabs do code block
+  $$('.tab[data-codetab]').forEach(t => {
+    t.addEventListener('click', () => {
+      $$('.tab[data-codetab]').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      $('#code-block-wrap').innerHTML = renderCodeBlock(t.dataset.codetab);
+      lucide.createIcons();
+    });
   });
 
-  // Numeros / instancias
-  const instEl = h(`
-    <div class="mb-8">
-      <div class="flex items-center justify-between mb-3">
-        <div class="text-lg font-semibold">Numeros</div>
-        <button id="new-inst" class="btn btn-primary px-4 py-2 text-sm">+ Novo numero</button>
+  lucide.createIcons();
+}
+
+/* ---------- Componentes do Dashboard ------------------------------------ */
+
+function cardHeader(title, subtitle, right) {
+  return `
+    <div class="flex items-start justify-between px-5 py-4 border-b border-card-border">
+      <div>
+        <h3 class="text-[15px] font-semibold text-ink">${escapeHtml(title)}</h3>
+        ${subtitle ? `<p class="text-[12.5px] text-ink-2 mt-0.5">${escapeHtml(subtitle)}</p>` : ''}
       </div>
-      <div class="card divide-y divide-[#232733]" id="inst-list"></div>
-    </div>`);
-  app.appendChild(instEl);
-  document.getElementById('new-inst').onclick=newInstance;
-  const il = instEl.querySelector('#inst-list');
-  if(!instances.length) il.appendChild(h(`<div class="p-5 text-slate-500 text-sm">Nenhum numero ainda. Crie o primeiro.</div>`));
-  instances.forEach(i=>{
-    const row = h(`
-      <div class="p-4 flex items-center justify-between">
-        <div>
-          <div class="font-medium">${i.name} <span class="badge ml-2 ${statusColor(i.status)}">${i.status}</span></div>
-          <div class="text-slate-500 text-xs mt-0.5">${i.phone||'sem numero'} . saude ${i.healthScore} . limite ${i.dailyLimit}/dia . inbound ${i.inboundMode}</div>
-        </div>
-        <div class="flex gap-2">
-          ${i.status==='QR_PENDING'?`<button data-qr="${i.id}" class="btn btn-ghost px-3 py-1.5 text-sm">Ver QR</button>`:''}
-        </div>
-      </div>`);
-    const qb=row.querySelector('[data-qr]'); if(qb) qb.onclick=()=>showQr(i.id);
-    il.appendChild(row);
-  });
+      <div>${right || ''}</div>
+    </div>
+  `;
+}
 
-  // API Keys
-  const keysEl = h(`
-    <div class="mb-8">
-      <div class="flex items-center justify-between mb-3">
-        <div class="text-lg font-semibold">Chaves de API</div>
-        <button id="new-key" class="btn btn-primary px-4 py-2 text-sm">+ Nova chave</button>
+function renderKpis(usage) {
+  const wrap = el(`<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4"></div>`);
+  const kpis = [
+    { icon: 'server',     label: 'Active Instances', value: usage.instances ?? 0,    hint: '/ ' + (usage.allowedInstances ?? 0) + ' permitidas', trend: null,    spark: 'up' },
+    { icon: 'send',       label: 'Messages Today',   value: usage.messagesSentToday ?? 0, hint: 'enviadas hoje',                          trend: null,    spark: 'up' },
+    { icon: 'check-check',label: 'Delivered',        value: '—', hint: 'dado em breve', trend: null, spark: 'flat' },
+    { icon: 'user-round', label: 'Unique Contacts',  value: '—', hint: 'dado em breve', trend: null, spark: 'flat' },
+    { icon: 'webhook',    label: 'Webhook Events',   value: '—', hint: 'dado em breve', trend: null, spark: 'flat' },
+    { icon: 'activity',   label: 'API Requests',     value: '—', hint: 'dado em breve', trend: null, spark: 'flat' },
+  ];
+  kpis.forEach(k => wrap.appendChild(el(`
+    <div class="card p-4">
+      <div class="flex items-center justify-between">
+        <div class="label-up flex items-center gap-2">
+          <i data-lucide="${k.icon}" class="w-3.5 h-3.5"></i>
+          ${k.label}
+        </div>
       </div>
-      <div class="card divide-y divide-[#232733]" id="key-list"></div>
-    </div>`);
-  app.appendChild(keysEl);
-  document.getElementById('new-key').onclick=newKey;
-  const kl = keysEl.querySelector('#key-list');
-  if(!keys.length) kl.appendChild(h(`<div class="p-5 text-slate-500 text-sm">Nenhuma chave. A chave de teste pode ter sido criada no signup.</div>`));
-  keys.forEach(k=>{
-    const row=h(`
-      <div class="p-4 flex items-center justify-between">
-        <div>
-          <div class="font-medium">${k.name} <span class="badge ml-2 ${k.mode==='LIVE'?'bg-green-900 text-green-300':'bg-slate-700 text-slate-300'}">${k.mode}</span></div>
-          <div class="text-slate-500 text-xs mt-0.5 font-mono">${k.keyPrefix}</div>
+      <div class="mt-2 text-[26px] font-bold text-ink leading-none">${k.value}</div>
+      <div class="text-[11.5px] text-ink-3 mt-1">${escapeHtml(k.hint)}</div>
+      <div class="mt-3 h-[42px]">${sparkline(k.spark)}</div>
+    </div>
+  `)));
+  return wrap;
+}
+
+// Gera um SVG sparkline simples (ilustrativo)
+function sparkline(kind) {
+  // 8 pontos randomicos estaveis por kind
+  const pts = kind === 'up'
+    ? [12, 15, 13, 18, 16, 22, 20, 28]
+    : kind === 'down'
+    ? [28, 24, 26, 20, 22, 18, 14, 12]
+    : [16, 18, 14, 17, 15, 16, 14, 16];
+  const w = 100, h = 40;
+  const max = Math.max(...pts), min = Math.min(...pts);
+  const step = w / (pts.length - 1);
+  const path = pts.map((v, i) => {
+    const x = i * step;
+    const y = h - ((v - min) / (max - min || 1)) * (h - 4) - 2;
+    return (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+  const area = path + ` L${w},${h} L0,${h} Z`;
+  return `
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="w-full h-full">
+      <defs>
+        <linearGradient id="sg-${kind}" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#00B84A" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#00B84A" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${area}" fill="url(#sg-${kind})"/>
+      <path d="${path}" fill="none" stroke="#00B84A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+  `;
+}
+
+function renderInstanceStatusTable(container) {
+  const insts = state.instances.slice(0, 5);
+  if (!insts.length) {
+    container.innerHTML = `
+      <div class="empty py-10">
+        <div class="empty-icon"><i data-lucide="server-off"></i></div>
+        <div class="text-[13.5px] font-semibold text-ink">Sem instancias ainda</div>
+        <div class="text-[12.5px] text-ink-2 mt-1 max-w-[220px]">Crie sua primeira instancia para conectar um numero do WhatsApp.</div>
+        <button type="button" class="btn btn-primary btn-sm mt-3" onclick="openCreateInstanceModal()">
+          <i data-lucide="plus" class="w-4 h-4"></i> Criar instancia
+        </button>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+  container.innerHTML = `
+    <table class="qr-table">
+      <thead>
+        <tr>
+          <th>Instance</th>
+          <th>Number</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${insts.map(i => `
+          <tr>
+            <td class="font-semibold text-ink">${escapeHtml(i.name)}</td>
+            <td class="font-mono text-[12.5px] text-ink-2">${escapeHtml(i.phone || '—')}</td>
+            <td>${statusBadge(i.status)}</td>
+            <td class="text-right">
+              <button type="button" class="text-ink-3 hover:text-ink" data-tip="Acoes" onclick="openInstanceActions('${i.id}')" aria-label="Acoes">
+                <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+              </button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  lucide.createIcons();
+}
+
+function statusBadge(status) {
+  const s = (status || '').toLowerCase();
+  if (s === 'connected' || s === 'open' || s === 'ready') return `<span class="badge badge-success"><span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>Connected</span>`;
+  if (s === 'connecting' || s === 'pairing' || s === 'qr')  return `<span class="badge badge-warning"><span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span>${escapeHtml(status)}</span>`;
+  if (s === 'disconnected' || s === 'closed' || s === 'error') return `<span class="badge badge-danger"><span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>${escapeHtml(status)}</span>`;
+  return `<span class="badge badge-muted">${escapeHtml(status || 'unknown')}</span>`;
+}
+
+function renderConnectQR(container) {
+  container.innerHTML = `
+    <div class="rounded-xl border-2 border-dashed border-card-border bg-[#FAFBFC] aspect-square flex flex-col items-center justify-center p-4 text-center" id="qr-box">
+      <div class="w-14 h-14 rounded-full bg-brand/10 text-brand flex items-center justify-center mb-3">
+        <i data-lucide="qr-code" class="w-7 h-7"></i>
+      </div>
+      <div class="text-[13px] font-semibold text-ink">Nenhuma instancia selecionada</div>
+      <div class="text-[12px] text-ink-2 mt-1">Crie uma instancia para gerar o QR Code.</div>
+    </div>
+    <div class="flex items-center gap-2 mt-3">
+      <button type="button" class="btn btn-primary btn-sm flex-1" onclick="openCreateInstanceModal()">
+        <i data-lucide="plus" class="w-4 h-4"></i> Nova instancia
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" data-tip="Em breve" disabled aria-label="Pareamento por codigo">
+        <i data-lucide="key" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="text-[12px] text-ink-3 mt-2 text-center">
+      Tem alguma instancia? <a href="#/instances" class="text-brand font-semibold hover:underline">Veja o QR ativo</a>
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+function renderSendTest(container) {
+  const insts = state.instances;
+  container.innerHTML = `
+    <div class="grid grid-cols-2 gap-3 mt-2">
+      <div>
+        <label class="field-label">Instancia</label>
+        <select class="select" ${insts.length ? '' : 'disabled'}>
+          ${insts.length ? insts.map(i => `<option>${escapeHtml(i.name)}</option>`).join('') : '<option>Sem instancias</option>'}
+        </select>
+      </div>
+      <div>
+        <label class="field-label">Telefone</label>
+        <div class="flex items-center gap-2">
+          <span class="px-3 py-2 bg-[#F1F5F9] border border-card-border rounded-l-lg text-[13px] font-semibold">🇧🇷 +55</span>
+          <input class="input rounded-l-none" placeholder="11 99999 0000" />
         </div>
-        <button data-rev="${k.id}" class="btn btn-ghost px-3 py-1.5 text-sm text-red-300">Revogar</button>
-      </div>`);
-    row.querySelector('[data-rev]').onclick=async()=>{ if(confirm('Revogar esta chave?')){ await api('/keys/'+k.id,{method:'DELETE'}); loadDashboard(); }};
-    kl.appendChild(row);
+      </div>
+    </div>
+    <div class="mt-3">
+      <div class="flex items-center justify-between">
+        <label class="field-label !mb-1">Mensagem</label>
+        <div class="text-[11px] text-ink-3"><span id="msg-count">0</span>/1000</div>
+      </div>
+      <textarea class="textarea h-[88px] resize-none" maxlength="1000" placeholder="Digite a mensagem de teste..."
+        oninput="document.getElementById('msg-count').textContent = this.value.length"></textarea>
+    </div>
+    <div class="flex items-center justify-between mt-3">
+      <label class="inline-flex items-center gap-2 cursor-not-allowed" data-tip="Em breve">
+        <input type="checkbox" disabled />
+        <span class="text-[12.5px] text-ink-2">Use Template</span>
+        <span class="badge badge-muted">em breve</span>
+      </label>
+      <button type="button" class="btn btn-primary" disabled data-tip="Disponivel via API ou modulo Followfy"
+        onclick="toast('Envio direto pela UI em breve. Use a API ou Followfy.','info')">
+        <i data-lucide="send" class="w-4 h-4"></i>
+        Send Message
+      </button>
+    </div>
+    <div class="mt-3 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-[12.5px] text-blue-800 flex items-start gap-2">
+      <i data-lucide="info" class="w-4 h-4 mt-0.5"></i>
+      <div>Envio direto pela UI esta em breve. Hoje envie via <a href="${DOCS_URL}" target="_blank" class="font-semibold underline">API</a> ou pelo modulo Followfy.</div>
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+function renderMessagingChart() {
+  // Linha simples de 14 pontos com 3 series (sent/delivered/failed)
+  const w = 480, h = 180;
+  const points = (seed, off) => Array.from({ length: 14 }, (_, i) => {
+    const v = 30 + Math.round(Math.sin(i * 0.6 + seed) * 12) + Math.round(Math.cos(i * 0.3) * 8) + off;
+    return Math.max(8, v);
   });
+  const series = [
+    { name: 'Sent',      color: '#00B84A', pts: points(0, 20) },
+    { name: 'Delivered', color: '#3B82F6', pts: points(2, 10) },
+    { name: 'Failed',    color: '#EF4444', pts: points(4, -10) },
+  ];
+  const all = series.flatMap(s => s.pts);
+  const max = Math.max(...all), min = Math.min(...all);
+  const step = w / 13;
+  const paths = series.map(s => {
+    const d = s.pts.map((v, i) => {
+      const x = i * step;
+      const y = h - ((v - min) / (max - min || 1)) * (h - 30) - 15;
+      return (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />`;
+  }).join('');
+  return `
+    <svg viewBox="0 0 ${w} ${h}" class="w-full h-[180px]">
+      ${[0.25, 0.5, 0.75].map(y => `<line x1="0" x2="${w}" y1="${h*y}" y2="${h*y}" stroke="#E5EAF0" stroke-dasharray="2 4"/>`).join('')}
+      ${paths}
+    </svg>
+    <div class="flex items-center justify-center gap-4 mt-2">
+      ${series.map(s => `<div class="flex items-center gap-1.5 text-[12px] text-ink-2"><span class="w-2.5 h-2.5 rounded-full" style="background:${s.color}"></span>${s.name}</div>`).join('')}
+    </div>
+  `;
 }
 
-// ─── Acoes ──────────────────────────────────────────────────────────────────
-async function checkout(planId){
-  try {
-    const qty = Number(prompt('Quantos numeros deseja contratar?', '1')||'1');
-    const m = (prompt('Pagamento: digite "pix" (Mercado Pago, PIX/cartao BR) ou "card" (Stripe, cartao internacional)', 'pix')||'pix').toLowerCase();
-    const provider = m.startsWith('c') ? 'stripe' : 'mercadopago';
-    const res = await api('/billing/checkout',{method:'POST',body:{ planId, quantity: qty, provider }});
-    if (res.mock) { alert('Modo demonstracao ('+res.provider+'): assinatura ativada sem cobranca.'); loadDashboard(); }
-    else window.location.href = res.url;
-  } catch(e){ alert(e.message); }
-}
-async function newInstance(){
-  try {
-    const name = prompt('Nome do numero (ex: Vendas):'); if(!name) return;
-    const mode = prompt('Modo inbound: off / webhook / followfy', 'off')||'off';
-    await api('/instances/create',{method:'POST',body:{ name, inboundMode: mode }});
-    loadDashboard();
-  } catch(e){ alert(e.message); }
-}
-async function newKey(){
-  try {
-    const name = prompt('Nome da chave (ex: Producao):'); if(!name) return;
-    const mode = prompt('Modo: live / test', 'live')||'live';
-    const res = await api('/keys',{method:'POST',body:{ name, mode }});
-    alert('Sua chave (copie agora, nao sera exibida de novo):\n\n'+res.rawKey);
-    loadDashboard();
-  } catch(e){ alert(e.message); }
-}
-async function showQr(id){
-  try {
-    const res = await fetch('/portal/api/instances/'+id+'/qr',{headers:{Authorization:'Bearer '+token}});
-    const d = await res.json();
-    if(!d.base64 && !d.qr){ alert('QR indisponivel ainda. Aguarde alguns segundos.'); return; }
-    const img = d.base64 || d.qr;
-    const modal = h(`<div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50" id="qrmodal">
-      <div class="card p-6 text-center"><div class="font-semibold mb-3">Escaneie no WhatsApp</div>
-      <img src="${img.startsWith('data:')?img:'data:image/png;base64,'+img}" class="w-64 h-64 bg-white rounded-lg p-2" />
-      <button class="btn btn-ghost w-full py-2 mt-4" onclick="document.getElementById('qrmodal').remove()">Fechar</button></div></div>`);
-    document.body.appendChild(modal);
-  } catch(e){ alert(e.message); }
+function renderDonutChart() {
+  // Donut estatico ilustrativo
+  const slices = [
+    { name: 'Delivered', value: 78, color: '#00B84A' },
+    { name: 'Pending',   value: 14, color: '#F59E0B' },
+    { name: 'Failed',    value: 8,  color: '#EF4444' },
+  ];
+  const total = slices.reduce((a, s) => a + s.value, 0);
+  const R = 60, r = 42, cx = 80, cy = 80;
+  let acc = 0;
+  const segs = slices.map(s => {
+    const start = (acc / total) * 2 * Math.PI - Math.PI / 2;
+    acc += s.value;
+    const end = (acc / total) * 2 * Math.PI - Math.PI / 2;
+    const large = (s.value / total) > 0.5 ? 1 : 0;
+    const x1 = cx + R * Math.cos(start), y1 = cy + R * Math.sin(start);
+    const x2 = cx + R * Math.cos(end),   y2 = cy + R * Math.sin(end);
+    const xi1 = cx + r * Math.cos(end),  yi1 = cy + r * Math.sin(end);
+    const xi2 = cx + r * Math.cos(start),yi2 = cy + r * Math.sin(start);
+    return `<path d="M${x1},${y1} A${R},${R} 0 ${large} 1 ${x2},${y2} L${xi1},${yi1} A${r},${r} 0 ${large} 0 ${xi2},${yi2} Z" fill="${s.color}"/>`;
+  }).join('');
+  return `
+    <div class="flex items-center gap-4">
+      <svg viewBox="0 0 160 160" class="w-[140px] h-[140px]">
+        ${segs}
+        <text x="80" y="80" text-anchor="middle" dominant-baseline="middle" font-size="22" font-weight="700" fill="#111827">${slices[0].value}%</text>
+        <text x="80" y="100" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#6B7280">delivered</text>
+      </svg>
+      <div class="space-y-2 flex-1">
+        ${slices.map(s => `
+          <div class="flex items-center justify-between text-[12.5px]">
+            <span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:${s.color}"></span>${s.name}</span>
+            <span class="font-semibold text-ink">${s.value}%</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-if (token) loadDashboard(); else renderAuth('login');
+function renderCodeBlock(kind) {
+  if (kind === 'send') {
+    return `
+<pre class="code-block"><span class="tk-com">// POST https://api.qr-api.com.br/v1/messages</span>
+<span class="tk-com">// Authorization: Bearer &lt;sua_api_key&gt;</span>
+
+{
+  <span class="tk-key">"instanceId"</span>: <span class="tk-str">"inst_abc123"</span>,
+  <span class="tk-key">"to"</span>: <span class="tk-str">"5511999990000"</span>,
+  <span class="tk-key">"type"</span>: <span class="tk-str">"text"</span>,
+  <span class="tk-key">"text"</span>: <span class="tk-str">"Ola! Sua compra foi confirmada."</span>,
+  <span class="tk-key">"idempotencyKey"</span>: <span class="tk-str">"order_42"</span>
+}</pre>
+<button type="button" class="absolute top-3 right-3 btn btn-ghost btn-sm !bg-white/10 !text-white hover:!bg-white/20"
+  onclick="copyText(this.previousElementSibling.innerText, 'Codigo copiado')">
+  <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy
+</button>`;
+  }
+  return `
+<pre class="code-block"><span class="tk-com">// POST https://seu-servidor.com/webhooks/qr-api</span>
+<span class="tk-com">// X-QRAPI-Signature: t=...,sig=hmac_sha256(...)</span>
+
+{
+  <span class="tk-key">"event"</span>: <span class="tk-str">"message.received"</span>,
+  <span class="tk-key">"instanceId"</span>: <span class="tk-str">"inst_abc123"</span>,
+  <span class="tk-key">"from"</span>: <span class="tk-str">"5511999990000"</span>,
+  <span class="tk-key">"text"</span>: <span class="tk-str">"Oi, quero comprar"</span>,
+  <span class="tk-key">"messageId"</span>: <span class="tk-str">"wamid.XYZ"</span>,
+  <span class="tk-key">"timestamp"</span>: <span class="tk-num">1717689600</span>
+}</pre>
+<button type="button" class="absolute top-3 right-3 btn btn-ghost btn-sm !bg-white/10 !text-white hover:!bg-white/20"
+  onclick="copyText(this.previousElementSibling.innerText, 'Codigo copiado')">
+  <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy
+</button>`;
+}
+
+function integrationCard(name, desc, icon, color) {
+  return `
+    <button type="button" class="text-left p-3.5 rounded-xl border border-card-border bg-white hover:border-brand hover:shadow-card transition">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background:${color}1A;color:${color}">
+        <i data-lucide="${icon}" class="w-4.5 h-4.5"></i>
+      </div>
+      <div class="text-[13px] font-semibold text-ink">${name}</div>
+      <div class="text-[11.5px] text-ink-2 mt-0.5">${desc}</div>
+    </button>
+  `;
+}
+
+function renderPlanCard(subscription, plan, usage) {
+  const statusBadge = subscription.status === 'active'
+    ? `<span class="badge badge-success">Active</span>`
+    : subscription.status === 'trialing'
+    ? `<span class="badge badge-info">Trialing</span>`
+    : `<span class="badge badge-muted">${escapeHtml(subscription.status || 'inactive')}</span>`;
+  const planName = plan?.name || 'Sem plano';
+  const planPrice = plan?.priceMonthlyBRL != null ? money(plan.priceMonthlyBRL) + '/mes' : '—';
+  const allowedInst = usage.allowedInstances || 0;
+  const usedInst = usage.instances || 0;
+  const dailyLimit = (plan?.dailyLimitPerInstance || 1000) * Math.max(1, allowedInst);
+  const used24h = usage.messagesSentToday || 0;
+
+  return `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-1">
+      <div>
+        <div class="flex items-center gap-2 mb-1">${statusBadge}</div>
+        <div class="text-[20px] font-bold text-ink">${escapeHtml(planName)}</div>
+        <div class="text-[13px] text-ink-2">${escapeHtml(planPrice)}</div>
+        <div class="text-[12.5px] text-ink-3 mt-2">
+          Cobrado mensalmente, cancele quando quiser.
+        </div>
+      </div>
+      <div class="space-y-3">
+        ${progressRow('Instancias', usedInst, allowedInst || 1)}
+        ${progressRow('Mensagens hoje', used24h, dailyLimit || 1)}
+        ${progressRow('API Requests', 0, 100000, true)}
+      </div>
+    </div>
+  `;
+}
+
+function progressRow(label, used, total, illustrative) {
+  const pct = Math.min(100, Math.round((used / Math.max(total, 1)) * 100));
+  return `
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[12.5px] text-ink-2">${label} ${illustrative ? '<span class="badge badge-muted">ilustrativo</span>' : ''}</span>
+        <span class="text-[12.5px] font-semibold text-ink">${used.toLocaleString('pt-BR')} <span class="text-ink-3 font-normal">/ ${total.toLocaleString('pt-BR')}</span></span>
+      </div>
+      <div class="progress"><div style="width:${pct}%"></div></div>
+    </div>
+  `;
+}
+
+/* ---------- Acoes do Dashboard ------------------------------------------ */
+
+window.go = go;
+window.toast = toast;
+window.copyText = (text, msg) => {
+  navigator.clipboard.writeText(text).then(() => toast(msg || 'Copiado!', 'success'));
+};
+
+window.openCreateInstanceModal = function() {
+  const body = el(`
+    <form id="ci-form" class="space-y-4">
+      <div>
+        <label class="field-label" for="ci-name">Nome da instancia</label>
+        <input id="ci-name" class="input" required placeholder="Comercial principal" />
+        <div class="field-help">Usado para identificar no dashboard. Pode trocar depois.</div>
+      </div>
+      <div>
+        <label class="field-label" for="ci-inbound">Modo inbound</label>
+        <select id="ci-inbound" class="select">
+          <option value="off">Desligado, so envio</option>
+          <option value="webhook" selected>Webhook proprio</option>
+          <option value="followfy">Encaminhar pro Followfy</option>
+        </select>
+        <div class="field-help">Define para onde mandar as mensagens recebidas.</div>
+      </div>
+    </form>
+  `);
+  const footer = el(`
+    <div class="flex items-center gap-2">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="ci-submit">
+        <i data-lucide="plus" class="w-4 h-4"></i> Criar instancia
+      </button>
+    </div>
+  `);
+  openModal({ title: 'Nova instancia', body, footer });
+  $('#ci-submit').addEventListener('click', async () => {
+    const name = $('#ci-name').value.trim();
+    const inboundMode = $('#ci-inbound').value;
+    if (!name) return;
+    try {
+      $('#ci-submit').disabled = true;
+      const res = await api('/instances/create', { method: 'POST', body: { name, inboundMode } });
+      toast('Instancia criada!', 'success');
+      closeModal();
+      await loadCommonData();
+      // Se estamos no dashboard ou instances, re-render
+      handleRoute();
+      // E mostra o QR da nova instancia
+      setTimeout(() => openQrModal(res.id || res.data?.id), 300);
+    } catch (err) {
+      toast(err.message, 'error');
+      $('#ci-submit').disabled = false;
+    }
+  });
+};
+
+window.openQrModal = async function(instanceId) {
+  if (!instanceId) return;
+  const inst = state.instances.find(i => i.id === instanceId);
+  const body = el(`
+    <div class="text-center">
+      <div class="text-[13px] text-ink-2 mb-3">Abra o WhatsApp no celular, va em <b>Aparelhos conectados</b> e escaneie:</div>
+      <div id="qr-modal-img" class="aspect-square w-[280px] mx-auto rounded-xl border-2 border-dashed border-card-border bg-[#FAFBFC] flex items-center justify-center p-4">
+        <div class="text-center">
+          <div class="w-10 h-10 rounded-full bg-brand/10 text-brand flex items-center justify-center mx-auto mb-2">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+          </div>
+          <div class="text-[12px] text-ink-2">Buscando QR...</div>
+        </div>
+      </div>
+      <div class="text-[12px] text-ink-3 mt-3">${escapeHtml(inst?.name || '')} · ${escapeHtml(inst?.status || '')}</div>
+    </div>
+  `);
+  const footer = el(`
+    <div class="flex items-center gap-2">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button type="button" class="btn btn-primary" id="qr-refresh">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh QR
+      </button>
+    </div>
+  `);
+  openModal({ title: 'Conectar instancia', body, footer });
+  const load = async () => {
+    try {
+      const data = await api('/instances/' + instanceId + '/qr');
+      const b64 = data.base64 || data.qr;
+      if (b64) {
+        const src = b64.startsWith('data:') ? b64 : ('data:image/png;base64,' + b64);
+        $('#qr-modal-img').innerHTML = `<img src="${src}" alt="QR Code" class="w-full h-full object-contain rounded-lg" />`;
+      } else if (data.error) {
+        $('#qr-modal-img').innerHTML = `<div class="text-[12.5px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">${escapeHtml(data.error)}</div>`;
+      }
+    } catch (err) {
+      $('#qr-modal-img').innerHTML = `<div class="text-[12.5px] text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">${escapeHtml(err.message)}</div>`;
+    }
+  };
+  $('#qr-refresh').addEventListener('click', load);
+  load();
+};
+
+window.openInstanceActions = function(id) {
+  openQrModal(id);
+};
+
+/* =========================================================================
+ *  TELA: Instances
+ * ========================================================================= */
+
+async function renderInstances() {
+  if (!state.me) await loadCommonData();
+  if (!state.me) return;
+
+  const page = el(`<div class="space-y-6 max-w-[1400px] mx-auto"></div>`);
+
+  page.appendChild(el(`
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-[22px] font-bold text-ink">Instances</h1>
+        <p class="text-ink-2 text-[13.5px] mt-0.5">Cada instancia conecta um numero de WhatsApp por QR.</p>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="openCreateInstanceModal()">
+        <i data-lucide="plus" class="w-4 h-4"></i> Nova instancia
+      </button>
+    </div>
+  `));
+
+  page.appendChild(el(`
+    <div class="card overflow-hidden">
+      <div class="px-5 py-4 border-b border-card-border flex items-center justify-between bg-[#FAFBFC]">
+        <div class="flex items-center gap-3">
+          <div class="tabs">
+            <button type="button" class="tab active">Todas</button>
+            <button type="button" class="tab">Conectadas</button>
+            <button type="button" class="tab">Desconectadas</button>
+          </div>
+        </div>
+        <div class="text-[12.5px] text-ink-2">${state.instances.length} instancia(s)</div>
+      </div>
+      <div id="inst-table"></div>
+    </div>
+  `));
+
+  renderShell('instances', page);
+  renderFullInstancesTable($('#inst-table'));
+  lucide.createIcons();
+}
+
+function renderFullInstancesTable(container) {
+  if (!state.instances.length) {
+    container.innerHTML = `
+      <div class="empty py-16">
+        <div class="empty-icon"><i data-lucide="server-off"></i></div>
+        <div class="text-[14px] font-semibold text-ink">Voce ainda nao tem instancias</div>
+        <div class="text-[13px] text-ink-2 mt-1 max-w-[320px]">Crie sua primeira instancia para conectar um numero do WhatsApp via QR code.</div>
+        <button type="button" class="btn btn-primary mt-4" onclick="openCreateInstanceModal()">
+          <i data-lucide="plus" class="w-4 h-4"></i> Criar primeira instancia
+        </button>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+  container.innerHTML = `
+    <table class="qr-table">
+      <thead>
+        <tr>
+          <th>Instance</th>
+          <th>Status</th>
+          <th>Number</th>
+          <th>Health</th>
+          <th>Daily limit</th>
+          <th>Inbound</th>
+          <th>Criada</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${state.instances.map(i => `
+          <tr>
+            <td>
+              <div class="font-semibold text-ink">${escapeHtml(i.name)}</div>
+              <div class="text-[11.5px] text-ink-3 font-mono">${escapeHtml(i.id)}</div>
+            </td>
+            <td>${statusBadge(i.status)}</td>
+            <td class="font-mono text-[12.5px] text-ink-2">${escapeHtml(i.phone || '—')}</td>
+            <td>
+              <div class="flex items-center gap-2">
+                <div class="w-16 progress"><div style="width:${i.healthScore ?? 0}%"></div></div>
+                <span class="text-[12px] font-semibold text-ink-2">${i.healthScore ?? '—'}</span>
+              </div>
+            </td>
+            <td class="text-ink-2">${(i.dailyLimit ?? '—').toLocaleString?.('pt-BR') || i.dailyLimit || '—'}</td>
+            <td><span class="badge badge-muted">${escapeHtml(i.inboundMode || 'off')}</span></td>
+            <td class="text-ink-2 text-[12.5px]">${relTime(i.createdAt)}</td>
+            <td class="text-right">
+              <div class="flex items-center justify-end gap-1">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="openQrModal('${i.id}')">
+                  <i data-lucide="qr-code" class="w-3.5 h-3.5"></i> QR
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" data-tip="Em breve" disabled>
+                  <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  lucide.createIcons();
+}
+
+/* =========================================================================
+ *  TELA: Developers (API Keys)
+ * ========================================================================= */
+
+async function renderDevelopers() {
+  if (!state.me) await loadCommonData();
+  if (!state.me) return;
+
+  const page = el(`<div class="space-y-6 max-w-[1400px] mx-auto"></div>`);
+
+  page.appendChild(el(`
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-[22px] font-bold text-ink">Developers</h1>
+        <p class="text-ink-2 text-[13.5px] mt-0.5">Gerencie chaves de API e veja exemplos de integracao.</p>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="openCreateKeyModal()">
+        <i data-lucide="plus" class="w-4 h-4"></i> Nova chave
+      </button>
+    </div>
+  `));
+
+  // Card de chaves
+  page.appendChild(el(`
+    <div class="card overflow-hidden">
+      ${cardHeader('API Keys', 'Cada chave da acesso completo a sua conta. Trate como senha.', '')}
+      <div id="keys-table"></div>
+    </div>
+  `));
+
+  // Code samples
+  page.appendChild(el(`
+    <div class="card p-5">
+      ${cardHeader('Exemplos de codigo', 'Enviar mensagem via API em diferentes linguagens.', '')}
+      <div class="mt-3">
+        <div class="tabs mb-3" role="tablist">
+          <button type="button" class="tab active" data-lang="curl">cURL</button>
+          <button type="button" class="tab" data-lang="node">Node.js</button>
+          <button type="button" class="tab" data-lang="python">Python</button>
+        </div>
+        <div id="lang-block" class="relative"></div>
+      </div>
+    </div>
+  `));
+
+  renderShell('developers', page);
+  renderKeysTable($('#keys-table'));
+  $('#lang-block').innerHTML = renderLangSnippet('curl');
+  $$('.tab[data-lang]').forEach(t => {
+    t.addEventListener('click', () => {
+      $$('.tab[data-lang]').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      $('#lang-block').innerHTML = renderLangSnippet(t.dataset.lang);
+      lucide.createIcons();
+    });
+  });
+  lucide.createIcons();
+}
+
+function renderKeysTable(container) {
+  if (!state.keys.length) {
+    container.innerHTML = `
+      <div class="empty py-12">
+        <div class="empty-icon"><i data-lucide="key-round"></i></div>
+        <div class="text-[14px] font-semibold text-ink">Nenhuma chave criada ainda</div>
+        <div class="text-[12.5px] text-ink-2 mt-1 max-w-[320px]">Crie uma chave LIVE para producao ou TEST para sandbox.</div>
+        <button type="button" class="btn btn-primary mt-4" onclick="openCreateKeyModal()">
+          <i data-lucide="plus" class="w-4 h-4"></i> Criar primeira chave
+        </button>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+  container.innerHTML = `
+    <table class="qr-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Prefix</th>
+          <th>Mode</th>
+          <th>Ultimo uso</th>
+          <th>Criada</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${state.keys.map(k => `
+          <tr>
+            <td class="font-semibold text-ink">${escapeHtml(k.name)}</td>
+            <td><code class="font-mono text-[12.5px] text-ink-2">${escapeHtml(k.keyPrefix)}••••••</code></td>
+            <td>${k.mode === 'live'
+              ? '<span class="badge badge-success">LIVE</span>'
+              : '<span class="badge badge-warning">TEST</span>'}
+            </td>
+            <td class="text-ink-2 text-[12.5px]">${relTime(k.lastUsedAt)}</td>
+            <td class="text-ink-2 text-[12.5px]">${relTime(k.createdAt)}</td>
+            <td class="text-right">
+              <button type="button" class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}', '${escapeHtml(k.name)}')">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Revogar
+              </button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  lucide.createIcons();
+}
+
+window.openCreateKeyModal = function() {
+  const body = el(`
+    <form id="ck-form" class="space-y-4">
+      <div>
+        <label class="field-label" for="ck-name">Nome</label>
+        <input id="ck-name" class="input" required placeholder="Producao backend" />
+        <div class="field-help">Apelido para identificar onde a chave esta sendo usada.</div>
+      </div>
+      <div>
+        <label class="field-label" for="ck-mode">Modo</label>
+        <select id="ck-mode" class="select">
+          <option value="live">LIVE, producao</option>
+          <option value="test">TEST, sandbox</option>
+        </select>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2 text-[12.5px] text-amber-800">
+        <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5"></i>
+        <div>Voce vera a chave completa <b>uma unica vez</b>. Salve em local seguro.</div>
+      </div>
+    </form>
+  `);
+  const footer = el(`
+    <div class="flex items-center gap-2">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="ck-submit">
+        <i data-lucide="key" class="w-4 h-4"></i> Criar chave
+      </button>
+    </div>
+  `);
+  openModal({ title: 'Nova chave de API', body, footer });
+  $('#ck-submit').addEventListener('click', async () => {
+    const name = $('#ck-name').value.trim();
+    const mode = $('#ck-mode').value;
+    if (!name) return;
+    try {
+      $('#ck-submit').disabled = true;
+      const res = await api('/keys', { method: 'POST', body: { name, mode } });
+      const raw = res.rawKey || res.key || res.token;
+      await loadCommonData();
+      closeModal();
+      // Modal de exibicao unica
+      showRawKeyModal(raw, name);
+      if (location.hash === '#/developers') renderDevelopers();
+    } catch (err) {
+      toast(err.message, 'error');
+      $('#ck-submit').disabled = false;
+    }
+  });
+};
+
+function showRawKeyModal(raw, name) {
+  const body = el(`
+    <div>
+      <p class="text-[13px] text-ink-2 mb-3">A chave <b class="text-ink">${escapeHtml(name)}</b> foi criada. Copie agora, ela nao sera mostrada de novo.</p>
+      <div class="relative">
+        <pre class="code-block !text-[12.5px] break-all whitespace-pre-wrap">${escapeHtml(raw)}</pre>
+        <button type="button" class="absolute top-2 right-2 btn btn-ghost btn-sm !bg-white/10 !text-white hover:!bg-white/20"
+          onclick="copyText('${escapeHtml(raw)}', 'Chave copiada!')">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy
+        </button>
+      </div>
+    </div>
+  `);
+  const footer = el(`
+    <button type="button" class="btn btn-primary" onclick="closeModal()">Entendi, salvei a chave</button>
+  `);
+  openModal({ title: 'Chave criada', body, footer, size: 540 });
+}
+
+window.revokeKey = async function(id, name) {
+  const body = el(`
+    <p class="text-[13.5px] text-ink-2">Tem certeza que deseja revogar a chave <b class="text-ink">${escapeHtml(name)}</b>?<br/>Toda integracao que use essa chave parara de funcionar imediatamente.</p>
+  `);
+  const footer = el(`
+    <div class="flex items-center gap-2">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button type="button" class="btn btn-danger" id="rk-yes">
+        <i data-lucide="trash-2" class="w-4 h-4"></i> Sim, revogar
+      </button>
+    </div>
+  `);
+  openModal({ title: 'Revogar chave', body, footer });
+  $('#rk-yes').addEventListener('click', async () => {
+    try {
+      await api('/keys/' + id, { method: 'DELETE' });
+      toast('Chave revogada', 'success');
+      closeModal();
+      await loadCommonData();
+      if (location.hash === '#/developers') renderDevelopers();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
+};
+
+function renderLangSnippet(lang) {
+  const snippets = {
+    curl: `<pre class="code-block">curl -X POST https://api.qr-api.com.br/v1/messages \\
+  -H <span class="tk-str">"Authorization: Bearer $QRAPI_KEY"</span> \\
+  -H <span class="tk-str">"Content-Type: application/json"</span> \\
+  -d '{
+    <span class="tk-key">"instanceId"</span>: <span class="tk-str">"inst_abc123"</span>,
+    <span class="tk-key">"to"</span>: <span class="tk-str">"5511999990000"</span>,
+    <span class="tk-key">"type"</span>: <span class="tk-str">"text"</span>,
+    <span class="tk-key">"text"</span>: <span class="tk-str">"Ola do QR-API!"</span>
+  }'</pre>`,
+    node: `<pre class="code-block"><span class="tk-key">import</span> fetch <span class="tk-key">from</span> <span class="tk-str">'node-fetch'</span>;
+
+<span class="tk-key">const</span> <span class="tk-fn">res</span> = <span class="tk-key">await</span> <span class="tk-fn">fetch</span>(<span class="tk-str">'https://api.qr-api.com.br/v1/messages'</span>, {
+  <span class="tk-key">method</span>: <span class="tk-str">'POST'</span>,
+  <span class="tk-key">headers</span>: {
+    <span class="tk-str">'Authorization'</span>: <span class="tk-str">\`Bearer \${process.env.QRAPI_KEY}\`</span>,
+    <span class="tk-str">'Content-Type'</span>: <span class="tk-str">'application/json'</span>,
+  },
+  <span class="tk-key">body</span>: <span class="tk-fn">JSON.stringify</span>({
+    <span class="tk-key">instanceId</span>: <span class="tk-str">'inst_abc123'</span>,
+    <span class="tk-key">to</span>: <span class="tk-str">'5511999990000'</span>,
+    <span class="tk-key">type</span>: <span class="tk-str">'text'</span>,
+    <span class="tk-key">text</span>: <span class="tk-str">'Ola do QR-API!'</span>,
+  }),
+});
+<span class="tk-key">const</span> data = <span class="tk-key">await</span> res.<span class="tk-fn">json</span>();</pre>`,
+    python: `<pre class="code-block"><span class="tk-key">import</span> os, requests
+
+res = requests.<span class="tk-fn">post</span>(
+    <span class="tk-str">"https://api.qr-api.com.br/v1/messages"</span>,
+    headers={
+        <span class="tk-str">"Authorization"</span>: <span class="tk-key">f</span><span class="tk-str">"Bearer {os.environ['QRAPI_KEY']}"</span>,
+        <span class="tk-str">"Content-Type"</span>: <span class="tk-str">"application/json"</span>,
+    },
+    json={
+        <span class="tk-str">"instanceId"</span>: <span class="tk-str">"inst_abc123"</span>,
+        <span class="tk-str">"to"</span>: <span class="tk-str">"5511999990000"</span>,
+        <span class="tk-str">"type"</span>: <span class="tk-str">"text"</span>,
+        <span class="tk-str">"text"</span>: <span class="tk-str">"Ola do QR-API!"</span>,
+    },
+)
+<span class="tk-fn">print</span>(res.<span class="tk-fn">json</span>())</pre>`,
+  };
+  return `${snippets[lang]}
+  <button type="button" class="absolute top-3 right-3 btn btn-ghost btn-sm !bg-white/10 !text-white hover:!bg-white/20"
+    onclick="copyText(this.previousElementSibling.innerText, 'Codigo copiado')">
+    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy
+  </button>`;
+}
+
+/* =========================================================================
+ *  TELA: Billing
+ * ========================================================================= */
+
+async function renderBilling() {
+  if (!state.me) await loadCommonData();
+  if (!state.me) return;
+
+  // Carrega invoices em paralelo (best-effort)
+  api('/billing/invoices').then(d => {
+    state.invoices = d.data || [];
+    const tbody = $('#invoices-body');
+    if (tbody) renderInvoicesBody(tbody);
+  }).catch(() => {});
+
+  const subscription = state.me.subscription || { status: 'inactive', planId: null, quantity: 1 };
+  const planObj = state.plans.find(p => p.id === subscription.planId) || state.plans[0];
+
+  const page = el(`<div class="space-y-6 max-w-[1400px] mx-auto"></div>`);
+
+  page.appendChild(el(`
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-[22px] font-bold text-ink">Billing</h1>
+        <p class="text-ink-2 text-[13.5px] mt-0.5">Sua assinatura, faturas e plano.</p>
+      </div>
+      <button type="button" class="btn btn-secondary" onclick="openBillingPortal()">
+        <i data-lucide="external-link" class="w-4 h-4"></i> Abrir portal de cobranca
+      </button>
+    </div>
+  `));
+
+  // Plano atual
+  page.appendChild(el(`
+    <div class="card p-6">
+      ${cardHeader('Plano atual', 'Detalhes e uso da sua assinatura.', '')}
+      ${renderPlanCard(subscription, planObj, state.me.usage || {})}
+    </div>
+  `));
+
+  // Planos disponiveis
+  page.appendChild(el(`
+    <div>
+      <h2 class="text-[16px] font-semibold text-ink mb-3">Planos disponiveis</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="plans-grid"></div>
+    </div>
+  `));
+
+  // Faturas
+  page.appendChild(el(`
+    <div class="card overflow-hidden">
+      ${cardHeader('Faturas', 'Historico de cobrancas.', '')}
+      <div id="invoices-body"></div>
+    </div>
+  `));
+
+  renderShell('billing', page);
+  renderPlansGrid($('#plans-grid'), subscription);
+  renderInvoicesBody($('#invoices-body'));
+  lucide.createIcons();
+}
+
+function renderPlansGrid(container, subscription) {
+  if (!state.plans.length) {
+    container.innerHTML = `<div class="card p-6 text-center text-ink-2 col-span-3">Sem planos cadastrados ainda.</div>`;
+    return;
+  }
+  container.innerHTML = state.plans.map((p, idx) => {
+    const isCurrent = p.id === subscription.planId;
+    const isPopular = idx === 1;
+    return `
+      <div class="card p-5 relative ${isPopular ? 'ring-2 ring-brand' : ''}">
+        ${isPopular ? '<div class="absolute -top-3 left-5 badge badge-success">Mais popular</div>' : ''}
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-[15px] font-semibold text-ink">${escapeHtml(p.name)}</div>
+            <div class="text-[12.5px] text-ink-2 mt-0.5">${p.instancesIncluded} instancia(s) inclusa(s)</div>
+          </div>
+          ${isCurrent ? '<span class="badge badge-info">atual</span>' : ''}
+        </div>
+        <div class="mt-4 mb-3">
+          <span class="text-[28px] font-bold text-ink">${money(p.priceMonthlyBRL).replace('R$', 'R$ ')}</span>
+          <span class="text-[13px] text-ink-2">/ mes</span>
+        </div>
+        <ul class="space-y-2 mb-4">
+          <li class="flex items-center gap-2 text-[13px] text-ink-soft"><i data-lucide="check" class="w-3.5 h-3.5 text-brand"></i> Ate ${p.dailyLimitPerInstance.toLocaleString('pt-BR')} msgs/dia por instancia</li>
+          ${(p.features || []).map(f => `<li class="flex items-center gap-2 text-[13px] text-ink-soft"><i data-lucide="check" class="w-3.5 h-3.5 text-brand"></i> ${escapeHtml(f)}</li>`).join('')}
+        </ul>
+        <button type="button" class="btn ${isCurrent ? 'btn-secondary' : 'btn-primary'} w-full" onclick="openCheckoutModal('${p.id}')" ${isCurrent ? 'disabled' : ''}>
+          ${isCurrent ? 'Plano atual' : 'Assinar'}
+        </button>
+      </div>
+    `;
+  }).join('');
+  lucide.createIcons();
+}
+
+function renderInvoicesBody(container) {
+  if (!state.invoices.length) {
+    container.innerHTML = `
+      <div class="empty py-10">
+        <div class="empty-icon"><i data-lucide="receipt"></i></div>
+        <div class="text-[13.5px] font-semibold text-ink">Sem faturas ainda</div>
+        <div class="text-[12.5px] text-ink-2 mt-1 max-w-[300px]">Quando voce tiver uma assinatura ativa, suas faturas aparecerao aqui.</div>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+  container.innerHTML = `
+    <table class="qr-table">
+      <thead>
+        <tr><th>#</th><th>Data</th><th>Plano</th><th>Valor</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        ${state.invoices.map(inv => `
+          <tr>
+            <td class="font-mono text-[12.5px] text-ink-2">${escapeHtml(inv.id || inv.number || '—')}</td>
+            <td class="text-ink-2 text-[12.5px]">${fmtDate(inv.createdAt || inv.date)}</td>
+            <td>${escapeHtml(inv.planName || inv.plan || '—')}</td>
+            <td class="font-semibold text-ink">${money(inv.amountBRL || inv.amount)}</td>
+            <td>${inv.status === 'paid'
+              ? '<span class="badge badge-success">paga</span>'
+              : inv.status === 'open'
+              ? '<span class="badge badge-warning">aberta</span>'
+              : '<span class="badge badge-muted">' + escapeHtml(inv.status || '—') + '</span>'}</td>
+            <td class="text-right">
+              ${inv.url ? `<a href="${escapeHtml(inv.url)}" target="_blank" class="btn btn-ghost btn-sm"><i data-lucide="download" class="w-3.5 h-3.5"></i></a>` : ''}
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  lucide.createIcons();
+}
+
+window.openCheckoutModal = function(planId) {
+  const plan = state.plans.find(p => p.id === planId);
+  if (!plan) return;
+  const providers = state.providers || {};
+  const body = el(`
+    <form id="co-form" class="space-y-4">
+      <div class="bg-[#FAFBFC] border border-card-border rounded-lg p-3">
+        <div class="text-[12.5px] text-ink-2">Voce esta assinando</div>
+        <div class="text-[15px] font-semibold text-ink">${escapeHtml(plan.name)}</div>
+        <div class="text-[12.5px] text-ink-2 mt-0.5">${money(plan.priceMonthlyBRL)} por instancia / mes</div>
+      </div>
+      <div>
+        <label class="field-label" for="co-qty">Quantidade de instancias</label>
+        <input id="co-qty" class="input" type="number" min="1" value="${plan.instancesIncluded || 1}" />
+      </div>
+      <div>
+        <label class="field-label">Meio de pagamento</label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="border border-card-border rounded-lg p-3 flex items-center gap-2 cursor-pointer hover:border-brand has-[:checked]:border-brand has-[:checked]:bg-brand/5">
+            <input type="radio" name="co-prov" value="mercadopago" ${providers.mercadopago ? 'checked' : 'disabled'} />
+            <span class="text-[13px] font-semibold">Mercado Pago</span>
+          </label>
+          <label class="border border-card-border rounded-lg p-3 flex items-center gap-2 cursor-pointer hover:border-brand has-[:checked]:border-brand has-[:checked]:bg-brand/5 ${providers.stripe ? '' : 'opacity-50 cursor-not-allowed'}">
+            <input type="radio" name="co-prov" value="stripe" ${providers.stripe && !providers.mercadopago ? 'checked' : ''} ${providers.stripe ? '' : 'disabled'} />
+            <span class="text-[13px] font-semibold">Stripe</span>
+          </label>
+        </div>
+      </div>
+    </form>
+  `);
+  const footer = el(`
+    <div class="flex items-center gap-2">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="co-submit">
+        <i data-lucide="lock" class="w-4 h-4"></i> Ir para pagamento
+      </button>
+    </div>
+  `);
+  openModal({ title: 'Assinar plano', body, footer, size: 520 });
+  $('#co-submit').addEventListener('click', async () => {
+    const quantity = parseInt($('#co-qty').value, 10) || 1;
+    const provider = $('input[name=co-prov]:checked')?.value || state.defaultProvider;
+    try {
+      $('#co-submit').disabled = true;
+      const res = await api('/billing/checkout', { method: 'POST', body: { planId, quantity, provider } });
+      if (res.mock) {
+        toast('Assinatura ativada em modo dev', 'success');
+        closeModal();
+        await loadCommonData();
+        renderBilling();
+      } else if (res.url) {
+        window.location.href = res.url;
+      }
+    } catch (err) {
+      toast(err.message, 'error');
+      $('#co-submit').disabled = false;
+    }
+  });
+};
+
+window.openBillingPortal = async function() {
+  try {
+    const res = await api('/billing/portal', { method: 'POST' });
+    if (res.url) window.open(res.url, '_blank');
+    else toast('Portal indisponivel no momento', 'info');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+};
+
+/* =========================================================================
+ *  TELA: Coming Soon (placeholder honesto)
+ * ========================================================================= */
+
+const COMING_SOON_META = {
+  messages:    { icon: 'send',         title: 'Messages',    desc: 'Inbox unificado com threads, replies e busca avancada para cada instancia.' },
+  contacts:    { icon: 'user-round',   title: 'Contacts',    desc: 'CRM leve de contatos: tags, segmentos, historico de conversas e import CSV.' },
+  templates:   { icon: 'file-text',    title: 'Templates',   desc: 'Biblioteca de templates aprovados com variaveis dinamicas e preview.' },
+  webhooks:    { icon: 'webhook',      title: 'Webhooks',    desc: 'Gerencie endpoints, veja entregas, retries e payloads HMAC assinados.' },
+  automations: { icon: 'workflow',     title: 'Automations', desc: 'Gatilhos + acoes (palavra-chave, horario, evento) sem precisar codar.' },
+  flows:       { icon: 'git-branch',   title: 'Flows',       desc: 'Editor visual de fluxos de conversa com branching e respostas rapidas.' },
+  analytics:   { icon: 'bar-chart-3',  title: 'Analytics',   desc: 'Metricas detalhadas de entrega, leitura, falhas e funil de conversas.' },
+  logs:        { icon: 'terminal',     title: 'Logs',        desc: 'Stream em tempo real de requests, eventos e erros, com filtros e busca.' },
+  settings:    { icon: 'settings',     title: 'Settings',    desc: 'Preferencias da conta, branding, idioma, fuso e politicas de seguranca.' },
+  team:        { icon: 'users',        title: 'Team',        desc: 'Convide colegas, defina papeis e permissoes por instancia ou modulo.' },
+};
+
+async function renderComingSoon(parts) {
+  if (!state.me) await loadCommonData();
+  if (!state.me) return;
+  const slug = (parts && parts[0]) || 'feature';
+  const meta = COMING_SOON_META[slug] || { icon: 'sparkles', title: slug, desc: 'Em desenvolvimento.' };
+  const page = el(`
+    <div class="max-w-[640px] mx-auto py-16 text-center">
+      <div class="w-20 h-20 rounded-full bg-brand/10 text-brand flex items-center justify-center mx-auto mb-6">
+        <i data-lucide="${meta.icon}" class="w-10 h-10"></i>
+      </div>
+      <span class="badge badge-info mb-3">Em breve</span>
+      <h1 class="text-[28px] font-bold text-ink">${escapeHtml(meta.title)}</h1>
+      <p class="text-[14px] text-ink-2 mt-2 max-w-[440px] mx-auto leading-relaxed">${escapeHtml(meta.desc)}</p>
+      <div class="flex items-center gap-2 justify-center mt-6">
+        <button type="button" class="btn btn-primary" onclick="go('/dashboard')">
+          <i data-lucide="home" class="w-4 h-4"></i> Voltar ao Dashboard
+        </button>
+        <a href="${DOCS_URL}" target="_blank" class="btn btn-secondary">
+          <i data-lucide="book-open" class="w-4 h-4"></i> Ver docs
+        </a>
+      </div>
+      <div class="mt-10 grid grid-cols-3 gap-3 text-left">
+        <div class="card p-4">
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-brand"></i>
+          <div class="text-[13px] font-semibold text-ink mt-2">Em construcao</div>
+          <div class="text-[12px] text-ink-2 mt-0.5">Time trabalhando agora.</div>
+        </div>
+        <div class="card p-4">
+          <i data-lucide="zap" class="w-4 h-4 text-amber-500"></i>
+          <div class="text-[13px] font-semibold text-ink mt-2">Acesso antecipado</div>
+          <div class="text-[12px] text-ink-2 mt-0.5">Solicite com nosso time.</div>
+        </div>
+        <div class="card p-4">
+          <i data-lucide="message-circle" class="w-4 h-4 text-blue-500"></i>
+          <div class="text-[13px] font-semibold text-ink mt-2">Quer participar?</div>
+          <div class="text-[12px] text-ink-2 mt-0.5">Mande feedback no suporte.</div>
+        </div>
+      </div>
+    </div>
+  `);
+  renderShell(slug, page);
+  lucide.createIcons();
+}
+
+/* =========================================================================
+ *  BOOT
+ * ========================================================================= */
+
+(async function boot() {
+  // Se ja tem token, carrega dados antes de rotear
+  if (token) {
+    await loadCommonData();
+    if (!state.me) { handleRoute(); return; } // logout ocorreu
+  }
+  if (!location.hash) {
+    location.hash = token ? '/dashboard' : '/login';
+  } else {
+    handleRoute();
+  }
+})();
 </script>
 </body>
 </html>
