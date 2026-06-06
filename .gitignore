@@ -1,6 +1,9 @@
 node_modules/
 dist/
+*.pyc
+__pycache__/
 .env
-.env.local
-*.tsbuildinfo
-prisma/generated/
+.env.*
+!.env.example
+packages/*/dist/
+packages/sdk-python/qrapi/__pycache__/
