@@ -6,7 +6,7 @@ import { meteringService } from '../billing/meteringService'
 import { assertActiveForSend } from './subscriptionService'
 
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379'
-const sendQueue = new Queue('qr-api:send', { connection: { url: redisUrl } })
+const sendQueue = new Queue('qrapi-send', { connection: { url: redisUrl } })
 
 export { sendQueue }
 

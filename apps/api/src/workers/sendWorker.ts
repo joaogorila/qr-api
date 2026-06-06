@@ -223,7 +223,7 @@ async function processSend(data: SendJobData): Promise<void> {
 
 export function createSendWorker() {
   const worker = new Worker<SendJobData>(
-    'qr-api:send',
+    'qrapi-send',
     async (job) => processSend(job.data),
     {
       connection: { url: redisUrl },

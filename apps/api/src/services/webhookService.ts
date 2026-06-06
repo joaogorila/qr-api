@@ -4,7 +4,7 @@ import { QrApiError } from '@flipt/qr-api-core'
 import type { RegisterWebhookInput, UpdateWebhookInput } from '@flipt/qr-api-core'
 
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379'
-export const webhookQueue = new Queue('qr-api:webhook', { connection: { url: redisUrl } })
+export const webhookQueue = new Queue('qrapi-webhook', { connection: { url: redisUrl } })
 
 export async function registerWebhook(tenantId: string, input: RegisterWebhookInput) {
   // Verifica que a instancia pertence ao tenant

@@ -84,7 +84,7 @@ async function processWebhook(data: WebhookJobData): Promise<void> {
 
 export function createWebhookWorker() {
   const worker = new Worker<WebhookJobData>(
-    'qr-api:webhook',
+    'qrapi-webhook',
     async (job) => processWebhook(job.data),
     {
       connection: { url: redisUrl },
