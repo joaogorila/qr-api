@@ -1,23 +1,19 @@
-FROM node:20-alpine AS builder
+# Usa node:20-slim (Debian) pois alpine nao tem libssl 1.1 necessario para Prisma
+FROM node:20-slim AS builder
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@10.18.0
 
-# Copia workspace inteiro (garante que todas as deps de sub-pacotes sejam instaladas)
 COPY . .
-
-# Instala TODAS as deps do workspace (root + packages + apps)
 RUN pnpm install --frozen-lockfile
-
-# Compila o core
 RUN cd packages/core && pnpm run build
-
-# Gera Prisma client e compila a API
 RUN cd apps/api && npx prisma generate && pnpm run build
 
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@10.18.0
 
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/tsconfig.base.json ./
