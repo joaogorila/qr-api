@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm"]
+
+[phases.install]
+cmds = [
+  "npm install -g pnpm@10.18.0",
+  "cd /app && pnpm install --frozen-lockfile --ignore-scripts"
+]
+
+[phases.build]
+cmds = [
+  "cd /app/packages/core && npx tsc",
+  "cd /app/apps/api && npx prisma generate && npx tsc"
+]
+
+[start]
+cmd = "cd /app/apps/api && node dist/index.js"
